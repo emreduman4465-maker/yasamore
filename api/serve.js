@@ -1,6 +1,6 @@
 /* Yasamore — siteyi Supabase'deki veriden anında üretip sunar (GitHub/token gerekmez).
    Panelde kaydedilen değişiklik birkaç saniye içinde sitede görünür:
-   her istekte (en çok 3 sn'de bir) yalnızca updated_at sorgulanır; değiştiyse site yeniden üretilir. */
+   her istekte (en çok 1 sn'de bir) yalnızca updated_at sorgulanır; değiştiyse site yeniden üretilir. */
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const Gen = require('../dist/yonetim/generator.js');
 
@@ -9,7 +9,7 @@ const SB_URL = (process.env.SUPABASE_URL || 'https://xnktorruwvnzndubeaeo.supaba
    "herkes site okur" politikası çalıştırılmış olmalı. */
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || 'sb_publishable_iNttOqqACr2imk6k0PXetg_155nooIZ';
 const HDR = SB_KEY.startsWith('sb_') ? { apikey: SB_KEY } : { apikey: SB_KEY, Authorization: 'Bearer ' + SB_KEY };
-const CHECK_MS = 3000;
+const CHECK_MS = 1000;
 let cache = { checked: 0, ver: null, files: null, src: 'fallback' };
 
 function fallbackData() {
@@ -51,6 +51,6 @@ module.exports = async (req, res) => {
   const v = files[key], ext = key.split('.').pop().toLowerCase();
   res.setHeader('Content-Type', TYPES[ext] || 'application/octet-stream');
   res.setHeader('X-Data-Source', c.src); /* supabase = canlı veri, fallback = yedek (panel değişiklikleri görünmez) */
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=5, must-revalidate');
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1, must-revalidate');
   res.status(status).send(typeof v === 'string' ? v : Buffer.from(v.b64, 'base64'));
 };
