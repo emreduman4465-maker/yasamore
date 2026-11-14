@@ -31,6 +31,7 @@
         ['theme.hdrLayout', 'Üst menü düzeni', 's', [['', 'Menü solda, logo ortada'], ['left', 'Logo solda, menü ortada']]],
         ['theme.hdrBg', 'Üst menü arka plan rengi', 'c'], ['theme.menuInk', 'Menü yazı rengi', 'c'],
         ['theme.menuSize', 'Menü yazı boyutu (px)', 'n', '14', 11, 22], ['theme.menuGap', 'Menü öğeleri arası boşluk (px)', 'n', '20', 6, 60],
+        ['theme.catBar', 'Kategori çubuğu (üst menünün altında tüm kategoriler, alt kategoriler açılır)', 's', [['', 'Göster'], ['off', 'Gizle (yerine “Tüm ürünler” açılır menüsü)']]],
         ['theme.megaMenu', '“Tüm ürünler” açılır menüsü (tüm kategoriler ve alt kategoriler)', 's', [['', 'Göster'], ['off', 'Gizle']]],
         ['theme.menuMax', 'Menüde ayrıca gösterilecek kategori sayısı (0–12)', 'n', '3', 0, 12],
         ['theme.hdrSearch', 'Üst menüde arama (ürün adı / kodu)', 's', [['', 'Göster'], ['off', 'Gizle']]]] },
