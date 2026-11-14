@@ -3,13 +3,13 @@
 var CFG = window.AURELYA_CONFIG || {}, sb = null, LG = AurelyaBuild.LANGS;
 var $ = function (s) { return document.querySelector(s); };
 var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-var D = null, view = 'urun', sub = 'brand', ei = -1, el = 'tr', sheet = null, q = '', cf = '', remoteOk = false, me = '', sel = new Set(), vis = [], csel = new Set();
+var D = null, view = 'urun', sub = 'brand', ei = -1, cpi = -1, el = 'tr', sheet = null, q = '', cf = '', remoteOk = false, me = '', sel = new Set(), vis = [], csel = new Set();
 D = JSON.parse(JSON.stringify(window.SITE_DATA || { settings: { name: 'Mağazam', langs: ['tr'], seo: {} }, products: [], catNames: {} }));
-function norm() { D.settings = D.settings || {}; D.settings.seo = D.settings.seo || {}; D.products = D.products || []; D.catNames = D.catNames || {}; D.catDesc = D.catDesc || {}; D.catSeo = D.catSeo || {}; }
+function norm() { D.settings = D.settings || {}; D.settings.custom = D.settings.custom || {}; D.settings.cpages = D.settings.cpages || []; D.settings.seo = D.settings.seo || {}; D.products = D.products || []; D.catNames = D.catNames || {}; D.catDesc = D.catDesc || {}; D.catSeo = D.catSeo || {}; D.catImg = D.catImg || {}; }
 norm();
 var langs = function () { var l = (D.settings.langs || ['tr']).filter(function (x) { return LG[x]; }); if (l.indexOf('tr') < 0) l.unshift('tr'); return l; };
 var NAV = [['urun', 'Ürünler'], ['kat', 'Kategoriler'], ['xl', 'Excel ile ürün ekle'], ['set', 'Site Ayarları'], ['pub', 'Yayınla'], ['acc', 'Hesap']];
-var SUB = [['brand', 'Logo ve Marka'], ['contact', 'İletişim'], ['legal', 'Yasal Bilgiler'], ['home', 'Ana sayfa'], ['about', 'Hakkımızda'], ['langs', 'Diller ve Çeviri'], ['merchant', 'Google Merchant'], ['seo', 'SEO']];
+var SUB = [['brand', 'Logo ve Marka'], ['contact', 'İletişim'], ['legal', 'Yasal Bilgiler'], ['home', 'Ana sayfa'], ['banner', 'Bannerlar ve Görseller'], ['about', 'Hakkımızda'], ['custom', 'Özel Kod'], ['cpages', 'Özel Sayfalar'], ['langs', 'Diller ve Çeviri'], ['merchant', 'Google Merchant'], ['seo', 'SEO']];
 
 /* ---------- kaydetme ---------- */
 var tm;
@@ -52,7 +52,7 @@ function renameCat(old, nn) {
   var fix = function (c) { var a = cparts(c); if (!a.length || a[0] !== oa[0]) return c; if (isSub) { if (a[1] !== oa[1]) return c; a[1] = nn; } else a[0] = nn; return a.join(' > '); };
   D.products.forEach(function (p) { if (p.cat) p.cat = fix(p.cat); });
   D.extraCats = (D.extraCats || []).map(fix);
-  ['catNames', 'catDesc', 'catSeo'].forEach(function (k) { Object.keys(D[k] || {}).forEach(function (key) { var nk = fix(key); if (nk !== key) { D[k][nk] = D[k][key]; delete D[k][key]; } }); });
+  ['catNames', 'catDesc', 'catSeo', 'catImg'].forEach(function (k) { Object.keys(D[k] || {}).forEach(function (key) { var nk = fix(key); if (nk !== key) { D[k][nk] = D[k][key]; delete D[k][key]; } }); });
   if (!isSub && D.settings.featuredCat === old) D.settings.featuredCat = nn;
 }
 function img(file, max, png, cb) {
@@ -90,8 +90,8 @@ async function mirrorProducts(list) {
   }));
   log(ok + ' görsel kendi depoya kopyalandı' + (fail ? ', ' + fail + ' görsel kopyalanamadı' : '') + '.');
 }
-function upImg(file, cb) {
-  img(file, 1400, false, function (u) {
+function upImg(file, cb, max) {
+  img(file, max || 1400, false, function (u) {
     if (!sb || !remoteOk) { cb(null); return; }
     fetch(u).then(function (r) { return r.blob(); }).then(function (b) {
       var ex = b.type === 'image/png' ? 'png' : b.type === 'image/svg+xml' ? 'svg' : 'jpg', nm = 'urunler/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ex;
@@ -188,7 +188,7 @@ function categories() {
     names.map(function (c) {
       var isSub = c.indexOf(' > ') > -1, lab = isSub ? c.split(' > ')[1] : c;
       return '<div class="c"' + (isSub ? ' style="margin-left:28px;border-left:3px solid #b08d57"' : '') + '><div class="row"><input type="checkbox" data-csel="' + esc(c) + '"' + (csel.has(c) ? ' checked' : '') + ' style="width:auto"><h3 style="margin:0;flex:1">' + (isSub ? '\u21b3 ' : '') + esc(lab) + ' <small class="mut">(' + catCount(c) + ' ürün)</small></h3>' + (isSub ? '' : '<button class="sm" data-newsub="' + esc(c) + '">+ Alt kategori</button>') + '<button class="sm" data-rencat="' + esc(c) + '">Yeniden adlandır</button><button class="sm dg" data-delcat="' + esc(c) + '">Sil</button></div><div class="g">' +
-        L.map(function (l) { return inp('catNames.' + ck(c) + '.' + l, LG[l].n + ' adı'); }).join('') + '</div>' + inp('catDesc.' + ck(c) + '.tr', 'Türkçe kategori açıklaması (SEO)', { area: 1 }) + '<details style="margin-top:8px"><summary>Kategori sayfası SEO (başlık / açıklama, her dil)</summary>' + langs().map(function (l) { return inp('catSeo.' + ck(c) + '.title.' + l, LG[l].n + ' — SEO başlığı (50–60 karakter)', { cnt: 1 }) + inp('catSeo.' + ck(c) + '.desc.' + l, LG[l].n + ' — SEO açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</details></div>';
+        L.map(function (l) { return inp('catNames.' + ck(c) + '.' + l, LG[l].n + ' adı'); }).join('') + '</div>' + inp('catDesc.' + ck(c) + '.tr', 'Türkçe kategori açıklaması (SEO)', { area: 1 }) + inp('catImg.' + ck(c), 'Ana sayfa koleksiyon kutusu görseli (adres) — boşsa kategorinin ilk ürününün görseli') + '<div><label>veya görsel yükleyin</label><input type="file" data-bimg="catImg.' + ck(c) + '" accept="image/*"></div>' + '<details style="margin-top:8px"><summary>Kategori sayfası SEO (başlık / açıklama, her dil)</summary>' + langs().map(function (l) { return inp('catSeo.' + ck(c) + '.title.' + l, LG[l].n + ' — SEO başlığı (50–60 karakter)', { cnt: 1 }) + inp('catSeo.' + ck(c) + '.desc.' + l, LG[l].n + ' — SEO açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</details></div>';
     }).join('') : '<div class="c mut">Henüz kategori yok. “+ Yeni kategori” ile ekleyin ya da Excel yükleyin.</div>');
 }
 function csUi() { var b = $('#cbd'), a = $('#csa'); if (!b) return; b.hidden = !csel.size; b.textContent = 'Seçilenleri sil (' + csel.size + ')'; var ks = catKeys(); a.checked = ks.length > 0 && ks.every(function (c) { return csel.has(c); }); }
@@ -230,7 +230,26 @@ function settings() {
   else if (sub === 'legal') h += '<div class="c"><h3>Yasal bilgiler (KVKK, mesafeli satış, iade sayfaları için)</h3><p class="mut">Bu bilgiler sitedeki KVKK Aydınlatma Metni, Gizlilik, Çerez, Mesafeli Satış Sözleşmesi, İade ve Değişim ve Kullanım Koşulları sayfalarına ve altbilgiye otomatik yazılır. Gerçek ticari bilgilerinizi girin; boş bırakılan zorunlu alanlar sayfada sarı “[… giriniz]” olarak görünür. E-posta ve telefon “İletişim” sekmesinden alınır.</p><div class="g">' + inp('settings.legal.company', 'Ticari unvan (şahıs ise ad-soyad)') + inp('settings.legal.taxOffice', 'Vergi dairesi') + inp('settings.legal.taxNo', 'Vergi no / T.C. kimlik no') + inp('settings.legal.mersis', 'MERSİS no (varsa)') + inp('settings.legal.phone', 'Telefon (boşsa WhatsApp numarası)') + inp('settings.legal.kep', 'KEP adresi (varsa)') + '</div>' + inp('settings.legal.address', 'Açık adres', { area: 1 }) + '</div>';
   else if (sub === 'home') h += '<div class="c"><h3>Ana sayfa (Hero)</h3><p class="mut">Başlıkta *yıldız* arasına aldığınız kelime altın renkli italik görünür.</p>' + inp('settings.featuredCat', 'Ana sayfada öne çıkan kategori (tam adı)') +
     langs().map(function (l) { return '<h4>' + LG[l].n + '</h4><div class="g">' + inp('settings.heroTitle.' + l, 'Başlık') + inp('settings.heroSub.' + l, 'Alt metin') + inp('settings.eyebrow.' + l, 'Başlık üstü küçük yazı') + '</div>'; }).join('') + '</div>';
+  else if (sub === 'banner') {
+    var BN = (S.banners = S.banners || {}), RO = [['', 'Varsayılan'], ['portrait', 'Dikey 3:4'], ['square', 'Kare 1:1'], ['landscape', 'Yatay 4:3'], ['tall', 'Uzun 2:3']];
+    var slots = [['hero1', 'Hero — büyük görsel'], ['hero2', 'Hero — küçük görsel'], ['ed1', 'Öne çıkan koleksiyon — görsel 1'], ['ed2', 'Öne çıkan koleksiyon — görsel 2'], ['story', 'Hikâyemiz görseli']];
+    var pvOf = function (b) { b = b || {}; return b.img || (((D.products.filter(function (p) { return p.code && p.code === String(b.code || '').trim(); })[0] || {}).images) || [])[0] || ''; };
+    h += '<datalist id="pcodes">' + D.products.filter(function (p) { return p.code; }).map(function (p) { return '<option value="' + esc(p.code) + '">' + esc((p.name || {}).tr || '') + '</option>'; }).join('') + '</datalist>' +
+      '<div class="c"><h3>Ana sayfa görselleri</h3><p class="mut">Her alan için öncelik sırası: <b>yüklediğiniz görsel</b> → <b>seçtiğiniz ürünün görseli</b> → otomatik (en yeni ürünler). Ürün seçmek için ürün kodunu yazın; liste açılır.</p>' +
+      slots.map(function (x) { var pv = pvOf(BN[x[0]]); return '<div style="border-top:1px solid var(--line);padding:10px 0"><div class="row"><img class="pv" src="' + esc(pv) + '" alt=""' + (pv ? '' : ' hidden') + '><b style="flex:1">' + x[1] + '</b><button class="sm" data-clr="settings.banners.' + x[0] + '.img">Yüklenen görseli kaldır</button></div><div class="g">' + inp('settings.banners.' + x[0] + '.code', 'Ürün kodu (bu ürünün görseli kullanılsın)', { list: 'pcodes' }) + '<div><label>Kendi görselinizi yükleyin</label><input type="file" data-bimg="settings.banners.' + x[0] + '.img" accept="image/*"></div></div></div>'; }).join('') +
+      '<p class="mut">Koleksiyon kutularının görselini <b>Kategoriler</b> sekmesinde her kategoride değiştirebilirsiniz.</p></div>' +
+      '<div class="c"><h3>Tam genişlik banner (kampanya)</h3><p class="mut">Ana sayfada hero bölümünün altında görünür; görsel yüklemezseniz gösterilmez. Önerilen boyut 1920×600.</p><div class="row"><img class="pv" src="' + esc((BN.wide || {}).img || '') + '" alt=""' + ((BN.wide || {}).img ? '' : ' hidden') + '><input type="file" data-bimg="settings.banners.wide.img" data-max="1920" accept="image/*"><button class="sm" data-clr="settings.banners.wide.img">Kaldır</button></div>' +
+      '<div class="g">' + inp('settings.banners.wide.h', 'Yükseklik — bilgisayar (px)', { t: 'number', n: 1, ph: '320' }) + inp('settings.banners.wide.hm', 'Yükseklik — mobil (px)', { t: 'number', n: 1, ph: '180' }) + '</div>' +
+      langs().map(function (l) { return '<h4>' + LG[l].n + '</h4><div class="g">' + inp('settings.banners.wide.alt.' + l, 'Görsel alt metni (SEO)') + inp('settings.banners.wide.link.' + l, 'Tıklanınca gidilecek adres (örn. /kategori/sunumluklar/)') + '</div>'; }).join('') + '</div>' +
+      '<div class="c"><h3>Görsel boyut ve şekilleri</h3><div class="g">' +
+      selx('settings.banners.shape', 'Köşe şekli', [['', 'Kemer (varsayılan)'], ['round', 'Yuvarlatılmış köşe'], ['square', 'Köşesiz']]) +
+      selx('settings.banners.fit', 'Görsel yerleşimi', [['', 'Alanı doldur (kırpar)'], ['contain', 'Tamamını göster (kırpmaz)']]) +
+      selx('settings.banners.heroRatio', 'Hero görsel oranı', RO) + selx('settings.banners.edRatio', 'Öne çıkan koleksiyon görsel oranı', RO) + selx('settings.banners.storyRatio', 'Hikâye görsel oranı', RO) +
+      inp('settings.banners.tileH', 'Koleksiyon kutuları yüksekliği — bilgisayar (px, 120–500)', { t: 'number', n: 1, ph: '230' }) + '</div></div>';
+  }
   else if (sub === 'about') h += '<div class="c"><h3>Hakkımızda / Hikâyemiz</h3><p class="mut">Boş bırakırsanız hazır metin kullanılır.</p>' + langs().map(function (l) { return inp('settings.about.' + l, LG[l].n, { area: 1 }); }).join('') + '</div>';
+  else if (sub === 'custom') h += customView();
+  else if (sub === 'cpages') h += cpagesView();
   else if (sub === 'langs') h += '<div class="c"><h3>Site dilleri</h3><p class="mut">Seçtiğiniz her dil için ayrı SEO sayfaları üretilir.</p>' + Object.keys(LG).map(function (k) { return '<label class="chk"><input type="checkbox" data-lang="' + k + '"' + (langs().indexOf(k) >= 0 ? ' checked' : '') + (k === 'tr' ? ' disabled' : '') + '>' + LG[k].n + '</label>'; }).join('') +
     '<p><button class="pri" data-run="miss">Eksik çevirileri otomatik tamamla</button></p><div class="log" id="lg" hidden></div></div>' +
     '<div class="c"><h3>Çeviri yöntemi</h3><p class="mut">Anahtar girerseniz Claude ile yüksek kaliteli çeviri yapılır (önerilir). Anahtar girmezseniz ücretsiz MyMemory servisi kullanılır (günlük sınırı vardır, kalitesi daha düşüktür). Anahtar yalnızca bu tarayıcıda saklanır.</p><label>Anthropic API anahtarı (isteğe bağlı)</label><input type="password" id="ak" value="' + esc(localStorage.getItem('aurelya-key') || '') + '" placeholder="sk-ant-…"></div>';
@@ -247,6 +266,59 @@ function settings() {
     '<label>Paylaşım görseli (1200×630 JPG/PNG önerilir)</label><div class="r"><img class="pv" src="' + esc(S.seo.ogImage || '') + '" alt=""><input type="file" data-up="settings.seo.ogImage" data-max="1200" accept="image/*"></div></div>' +
     '<div class="c"><h3>Ana sayfa SEO</h3>' + langs().map(function (l) { return inp('settings.seo.homeTitle.' + l, LG[l].n + ' — ana sayfa başlığı (50–60 karakter)', { cnt: 1 }) + inp('settings.seo.siteDesc.' + l, LG[l].n + ' — ana sayfa açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</div>';
   return h;
+}
+
+/* ---------- özel kod ve özel sayfalar ---------- */
+function code(p, label, ph, rows) {
+  return '<div><label>' + label + '</label><textarea class="code" spellcheck="false" autocapitalize="off" autocomplete="off" rows="' + (rows || 10) + '" data-p="' + esc(p) + '" placeholder="' + esc(ph || '') + '">' + esc(val(p)) + '</textarea></div>';
+}
+function customView() {
+  return '<div class="c"><h3>Özel kod (tüm sayfalara uygulanır)</h3>' +
+    '<p class="mut">Buraya yazdıklarınız sitedeki <b>tüm sayfalara</b> eklenir (ürün, kategori, ana sayfa, yasal sayfalar, özel sayfalar). Kaydedince site birkaç saniye içinde güncellenir. Bir alanı boşaltırsanız kod siteden kalkar. Kodlar olduğu gibi yayınlanır; yanlış kod siteyi bozabilir, önce küçük bir değişiklikle deneyin. Gizli anahtar/şifre yazmayın: site kodu herkese açıktır.</p>' +
+    code('settings.custom.css', 'Özel CSS (temanın üstüne eklenir, aynı seçiciyi ezer)', '.btn{border-radius:0}\n.hdr{background:#111}', 12) +
+    code('settings.custom.head', 'Head HTML (&lt;/head&gt; öncesi): meta etiketi, Meta/TikTok Pixel, Tag Manager, doğrulama kodu, ek font…', '<meta name="facebook-domain-verification" content="…">\n<script>/* pixel kodu */</script>', 8) +
+    code('settings.custom.body', 'Sayfa sonu HTML (&lt;/body&gt; öncesi): canlı destek, sohbet balonu, açılır pencere…', '<div id="destek">…</div>', 8) +
+    code('settings.custom.js', 'Özel JavaScript (&lt;script&gt; etiketi yazmayın; /custom.js olarak yüklenir)', "document.addEventListener('DOMContentLoaded', function () {\n  // kodunuz\n});", 12) +
+    '<p class="mut">Not: “Boş sayfa” düzenindeki özel sayfalara bu genel kod eklenmez (sayfanın HTML’i olduğu gibi yayınlanır).</p></div>';
+}
+function cpageList() { return D.settings.cpages || (D.settings.cpages = []); }
+function cpagesView() {
+  var A = cpageList(), RES = AurelyaBuild.reserved.concat(Object.keys(LG));
+  if (cpi < 0 || !A[cpi]) {
+    cpi = -1;
+    return '<div class="c"><h3>Özel sayfalar</h3><p class="mut">Kendi HTML, CSS ve JavaScript’inizle istediğiniz kadar sayfa ekleyin (kampanya, landing page, SSS, iletişim formu, üçüncü parti araç sayfaları…). Her sayfa içeriği girdiğiniz dillerde ayrı adreste yayınlanır ve sitemap’e eklenir.</p>' +
+      '<p><button class="pri" data-cpnew="1">+ Yeni sayfa</button></p>' +
+      (A.length ? A.map(function (c, i) {
+        var bd = (c.draft === '1' ? '<span class="bd">taslak</span>' : '') + (c.menu === '1' ? '<span class="bd">menü</span>' : '') + (c.footer === '1' ? '<span class="bd">altbilgi</span>' : '') + (c.noindex === '1' ? '<span class="bd">noindex</span>' : '') + (c.layout === 'raw' ? '<span class="bd">boş sayfa</span>' : '');
+        return '<div class="r"><span><b>' + esc((c.title || {}).tr || c.slug || '(adsız)') + '</b> <span class="mut">/' + esc(c.slug) + '/</span>' + bd + '</span><button class="sm" data-cpedit="' + i + '">Düzenle</button>' + (c.draft === '1' || !c.slug ? '' : '<a href="../' + esc(c.slug) + '/" target="_blank" rel="noopener"><button class="sm">Aç</button></a>') + '<button class="sm dg" data-cpdel="' + i + '">Sil</button></div>';
+      }).join('') : '<p class="mut">Henüz özel sayfa yok.</p>') + '</div>';
+  }
+  var c = A[cpi], b = 'settings.cpages.' + cpi, cl = langs(); if (cl.indexOf(el) < 0) el = 'tr';
+  var warn = '';
+  if (!c.slug) warn = 'Adres boş: sayfa yayınlanmaz.';
+  else if (RES.indexOf(c.slug) > -1) warn = 'Bu adres sistem tarafından kullanılıyor, sayfa yayınlanmaz. Başka bir adres yazın.';
+  else if (A.some(function (x, i) { return i !== cpi && x.slug === c.slug; })) warn = 'Bu adresi başka bir sayfa kullanıyor, sayfa yayınlanmaz.';
+  var u = (el === 'tr' ? '' : '/' + el) + '/' + (c.slug || '…') + '/';
+  return '<div class="c"><div class="row"><button data-cpback="1">← Sayfa listesi</button><b style="flex:1">' + esc((c.title || {}).tr || c.slug || 'Yeni sayfa') + '</b>' + (c.draft === '1' || !c.slug ? '' : '<a href="..' + esc(u) + '" target="_blank" rel="noopener"><button class="sm">Sayfayı aç</button></a>') + '<button class="sm dg" data-cpdel="' + cpi + '">Sil</button></div></div>' +
+    '<div class="c"><h3>Sayfa ayarları</h3><div class="g">' +
+    '<div><label>Adres (URL)</label><input type="text" data-cpslug="' + cpi + '" value="' + esc(c.slug || '') + '" placeholder="kampanya"></div>' +
+    selx(b + '.layout', 'Sayfa düzeni', [['text', 'Metin sayfası (başlık + dar sütun)'], ['site', 'Serbest HTML (üst menü ve altbilgi var)'], ['wide', 'Tam genişlik (üst menü ve altbilgi var, kenar boşluğu yok)'], ['raw', 'Boş sayfa (menü/altbilgi yok, tüm sayfa sizin HTML’iniz)']]) +
+    selx(b + '.draft', 'Durum', [['', 'Yayında'], ['1', 'Taslak (siteye eklenmez)']]) +
+    selx(b + '.menu', 'Üst menüde bağlantı', [['', 'Hayır'], ['1', 'Evet']]) +
+    selx(b + '.footer', 'Altbilgide bağlantı', [['', 'Hayır'], ['1', 'Evet']]) +
+    selx(b + '.noindex', 'Arama motorları', [['', 'İndekslensin'], ['1', 'İndekslenmesin (noindex, sitemap’e girmez)']]) +
+    selx(b + '.hideTitle', 'Metin sayfasında otomatik başlık (H1)', [['', 'Göster'], ['1', 'Gizle (H1’i kendi HTML’imde yazıyorum)']]) +
+    '</div>' + (warn ? '<p class="bad" style="margin:8px 0 0">' + warn + '</p>' : '') +
+    '<p class="mut" style="margin:8px 0 0">Adres: <b>' + esc(u) + '</b>. “Boş sayfa” düzeninde tam bir HTML belgesi (&lt;html&gt;…) yazarsanız olduğu gibi yayınlanır; yazmazsanız yalnızca gövde içeriği sayılır ve başlık/açıklama/canonical sizin için eklenir.</p></div>' +
+    '<div class="c"><h3>İçerik</h3><div class="tabs">' + cl.map(function (l) { return '<button class="' + (l === el ? 'on' : '') + '" data-el="' + l + '">' + LG[l].n + (((c.html || {})[l] || '').trim() ? ' ✓' : '') + '</button>'; }).join('') + '</div>' +
+    '<div class="g">' + inp(b + '.title.' + el, 'Sayfa başlığı') + '</div>' +
+    inp(b + '.desc.' + el, 'Meta açıklama (SEO, 120–158 karakter; boşsa içerikten alınır)', { area: 1, cnt: 1 }) +
+    code(b + '.html.' + el, 'HTML içerik (' + LG[el].n + ')', '<h2>Başlık</h2>\n<p>Metin…</p>', 18) +
+    '<p class="mut">Bu dilin içeriği boşsa sayfa bu dilde yayınlanmaz. Dil sekmelerindeki ✓ içerik girilmiş dilleri gösterir.</p></div>' +
+    '<div class="c"><h3>Bu sayfaya özel kod (tüm diller)</h3>' +
+    code(b + '.css', 'Sayfa CSS', '.hero{background:#000}', 8) +
+    code(b + '.head', 'Head HTML', '<script src="…"></script>', 5) +
+    code(b + '.js', 'Sayfa JavaScript (&lt;script&gt; etiketi yazmayın; sayfa sonunda çalışır)', "document.querySelector('#x').onclick = function () {};", 8) + '</div>';
 }
 function publishView() {
   return '<div class="c"><h3>SEO denetimi</h3><div id="audit"></div></div><div class="c"><h3>Siteyi yayınla</h3><p class="mut">Artık GitHub anahtarı gerekmez. Yaptığınız her değişiklik Supabase’e kaydedilir ve site birkaç saniye içinde otomatik güncellenir.</p><p><button class="pri" data-run="gh">Kaydet ve kontrol et</button></p><div class="log" id="lg" hidden></div></div>' +
@@ -267,6 +339,7 @@ document.addEventListener('input', function (e) {
 });
 document.addEventListener('change', function (e) {
   var t = e.target;
+  if (t.dataset.cpslug != null) { var cps = cpageList()[+t.dataset.cpslug]; if (cps) { cps.slug = AurelyaBuild.slugify(t.value); persist(); render(); } return; }
   if (t.id === 'pc') { cf = t.value; fillList(); return; }
   if (t.id === 'csa') { catKeys().forEach(function (c) { t.checked ? csel.add(c) : csel.delete(c); }); document.querySelectorAll('[data-csel]').forEach(function (x) { x.checked = t.checked; }); csUi(); return; }
   if (t.dataset.csel != null) { t.checked ? csel.add(t.dataset.csel) : csel.delete(t.dataset.csel); csUi(); return; }
@@ -275,6 +348,7 @@ document.addEventListener('change', function (e) {
   if (t.dataset.sel != null) { var sp = D.products[+t.dataset.sel]; t.checked ? sel.add(sp) : sel.delete(sp); selUi(); return; }
   if (t.dataset.lang) { var s = new Set(langs()); t.checked ? s.add(t.dataset.lang) : s.delete(t.dataset.lang); D.settings.langs = Array.from(s); persist(); render(); }
   if (t.dataset.up && t.files[0]) img(t.files[0], +t.dataset.max, !!t.dataset.png, function (u) { path(t.dataset.up, u, 1); persist(); render(); });
+  if (t.dataset.bimg && t.files[0]) { if (!remoteOk) { alert('Görsel yüklemek için Supabase girişi gerekir.'); return; } $('#sv').textContent = 'Görsel yükleniyor…'; upImg(t.files[0], function (u) { if (u) { path(t.dataset.bimg, u, 1); persist(); render(); } else $('#sv').textContent = 'Görsel yüklenemedi'; }, +t.dataset.max || 1400); return; }
   if (t.dataset.addimg) { var pr = D.products[+t.dataset.addimg], fl = Array.from(t.files), k = 0; if (!remoteOk) return; $('#sv').textContent = 'Görseller yükleniyor…'; fl.forEach(function (f) { upImg(f, function (u) { if (u) (pr.images = pr.images || []).push(u); if (++k === fl.length) { persist(); render(); } }); }); }
   if (t.id === 'xf' && t.files[0]) { var r = new FileReader(); r.onload = function () { try { var wb = XLSX.read(r.result, { type: 'array' }); sheet = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }); $('#xi').textContent = (sheet.length - 1) + ' satır bulundu'; } catch (x) { $('#xi').textContent = 'Dosya okunamadı'; } }; r.readAsArrayBuffer(t.files[0]); }
   if (t.id === 'ak') localStorage.setItem('aurelya-key', t.value.trim());
@@ -296,6 +370,10 @@ document.addEventListener('click', function (e) {
   else if (d.newsub) { var ns = prompt('“' + d.newsub + '” için alt kategori adı:'); if (ns && ns.replace(/>/g, ' ').trim()) { var nf = d.newsub + ' > ' + ns.replace(/>/g, ' ').replace(/\s+/g, ' ').trim(); if (catKeys().indexOf(nf) > -1) { alert('Bu alt kategori zaten var.'); } else { (D.extraCats = D.extraCats || []).push(nf); persist(); render(); } } }
   else if (d.delcat) { var dn = catProds([d.delcat]).length; if (confirm('“' + d.delcat + '” kategorisi silinsin mi?' + (dn ? '\n\nTamam: kategori VE içindeki ' + dn + ' ürün kalıcı silinir.\nİptal: bir sonraki soruda yalnızca kategoriyi silme seçeneği sunulur.' : ''))) { deleteCats([d.delcat], true).then(render); } else if (dn && confirm('Yalnızca kategori silinsin, ' + dn + ' ürün kategorisiz kalsın mı?')) { deleteCats([d.delcat], false).then(render); } }
   else if (d.rencat) { var oldn = cparts(d.rencat).pop(), nn = prompt('Yeni ad:', oldn); if (nn) { nn = nn.replace(/>/g, ' ').replace(/\s+/g, ' ').trim(); if (nn && nn !== oldn) { renameCat(d.rencat, nn); persist(); render(); } } }
+  else if (d.cpnew) { var cpT = prompt('Sayfa başlığı (Türkçe):'); if (cpT && cpT.trim()) { var cpA = cpageList(), cpB = AurelyaBuild.slugify(cpT) || 'sayfa', cpS = cpB, cpN = 2, cpR = AurelyaBuild.reserved.concat(Object.keys(LG)); while (cpR.indexOf(cpS) > -1 || cpA.some(function (x) { return x.slug === cpS; })) cpS = cpB + '-' + (cpN++); cpA.push({ slug: cpS, layout: 'text', title: { tr: cpT.trim() }, desc: {}, html: { tr: '<p>İçeriğinizi buraya yazın.</p>' } }); cpi = cpA.length - 1; el = 'tr'; persist(); render(); window.scrollTo(0, 0); } }
+  else if (d.cpedit) { cpi = +d.cpedit; el = 'tr'; render(); window.scrollTo(0, 0); }
+  else if (d.cpback) { cpi = -1; render(); }
+  else if (d.cpdel) { var cpD = cpageList()[+d.cpdel]; if (cpD && confirm('“' + (((cpD.title || {}).tr) || cpD.slug || 'Adsız') + '” sayfası kalıcı olarak silinsin mi?')) { cpageList().splice(+d.cpdel, 1); cpi = -1; persist(); render(); } }
   else if (d.run) run(d.run);
 });
 $('#lo').onclick = async function () { await saveNow(); await sb.auth.signOut(); location.reload(); };

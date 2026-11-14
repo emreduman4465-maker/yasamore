@@ -23,6 +23,7 @@ JS += "(function(){var K='aur_ck',b=document.getElementById('ck');function ga(){
 
 /* ---------- Yasal sayfalar (KVKK, gizlilik, çerez, mesafeli satış, iade, kullanım koşulları) ---------- */
 var LGL = [['kvkk', 'kvkk'], ['gizlilik-politikasi', 'gizlilik'], ['cerez-politikasi', 'cerez'], ['mesafeli-satis-sozlesmesi', 'mesafeli'], ['iade-ve-degisim', 'iade'], ['kullanim-kosullari', 'kosullar']];
+var CP_RESERVED = ['urun', 'urunler', 'kategori', 'yonetim', 'api', 'assets', 'en', 'de', 'fr', 'ar', 'tr', '404', 'sitemap', 'robots', 'style', 'app', 'custom', 'google-merchant'].concat(LGL.map(function (x) { return x[0]; }));
 var LN = {
   tr: { kvkk: 'KVKK Aydınlatma Metni', gizlilik: 'Gizlilik Politikası', cerez: 'Çerez Politikası', mesafeli: 'Mesafeli Satış Sözleşmesi', iade: 'İade ve Değişim', kosullar: 'Kullanım Koşulları', ckt: 'Bu site, ziyaret deneyimini ölçmek için analitik çerezler kullanır. Tercihinizi seçebilirsiniz.', cka: 'Kabul et', ckr: 'Reddet', cko: 'Çerez tercihleri', ckl: 'Çerez Politikası' },
   en: { kvkk: 'Privacy Notice (KVKK)', gizlilik: 'Privacy Policy', cerez: 'Cookie Policy', mesafeli: 'Distance Sales Agreement', iade: 'Returns & Exchanges', kosullar: 'Terms of Use', ckt: 'This site uses analytics cookies to measure visits. You can choose your preference.', cka: 'Accept', ckr: 'Reject', cko: 'Cookie settings', ckl: 'Cookie Policy' },
@@ -116,10 +117,33 @@ function build(data, opt) {
   var pbrand = function (p) { return String(p.brand || M.brand || S.name || '').trim(); };
   var avail = function (p) { return ({ in_stock: 1, out_of_stock: 1, preorder: 1, backorder: 1 })[p.availability] ? p.availability : (p.stock === false ? 'out_of_stock' : 'in_stock'); };
   var SCHAV = { in_stock: 'InStock', out_of_stock: 'OutOfStock', preorder: 'PreOrder', backorder: 'BackOrder' }, SCHCOND = { 'new': 'NewCondition', refurbished: 'RefurbishedCondition', used: 'UsedCondition' };
+  var clampN = function (v, a, b, d) { v = +v; return isFinite(v) && v > 0 ? Math.min(b, Math.max(a, v)) : d; };
+  var BN = S.banners || {}, RAT = { portrait: '3/4', square: '1/1', landscape: '4/3', tall: '2/3' }, bcss = '';
+  if (BN.shape === 'round') bcss += '.arch{border-radius:22px}'; else if (BN.shape === 'square') bcss += '.arch{border-radius:0}';
+  if (BN.fit === 'contain') bcss += '.arch img,.mo img{object-fit:contain}';
+  if (RAT[BN.heroRatio]) bcss += '.hc .a1,.hc .a2{aspect-ratio:' + RAT[BN.heroRatio] + '}';
+  if (RAT[BN.edRatio]) bcss += '.ed .arch{aspect-ratio:' + RAT[BN.edRatio] + '}';
+  if (RAT[BN.storyRatio]) bcss += '.st .arch{aspect-ratio:' + RAT[BN.storyRatio] + '}';
+  if (+BN.tileH > 0) bcss += '@media(min-width:901px){.mo{grid-auto-rows:' + clampN(BN.tileH, 120, 500, 230) + 'px}}';
+  bcss += '.wb{margin:26px 0 0;border-radius:18px;overflow:hidden;background:var(--soft)}.wb a{display:block}.wb img{width:100%;height:var(--wh,320px);object-fit:cover;display:block}@media(max-width:800px){.wb img{height:var(--whm,180px)}}';
   var xe = function (s) { return String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]; }); };
   var langs = (S.langs || ['tr']).filter(function (l) { return L[l]; });
   if (langs.indexOf('tr') < 0) langs.unshift('tr');
   var report = { pages: 0, warnings: [] };
+  /* Özel kod (tüm sayfalar) ve özel sayfalar — Site Ayarları → Özel Kod / Özel Sayfalar */
+  var CU = S.custom || {}, hasCjs = !!String(CU.js || '').trim();
+  var jsx = function (s) { return String(s || '').replace(/<\/script/gi, '<\\/script'); };
+  var cssx = function (s) { return String(s || '').replace(/<\/style/gi, '<\\/style'); };
+  var CP = [], cpSeen = {}, cpRes = CP_RESERVED.concat(Object.keys(L));
+  (S.cpages || []).forEach(function (c) {
+    if (!c || c.draft === '1') return;
+    var sl = slugify(c.slug || '');
+    if (!sl) { report.warnings.push('Özel sayfa adresi boş: "' + (tx(c.title, 'tr') || '?') + '" (Site Ayarları → Özel Sayfalar)'); return; }
+    if (cpRes.indexOf(sl) > -1 || cpSeen[sl]) { report.warnings.push('Özel sayfa adresi başka bir sayfayla çakışıyor, atlandı: /' + sl + '/'); return; }
+    cpSeen[sl] = 1; CP.push(Object.assign({}, c, { slug: sl }));
+  });
+  var cpTitle = function (c, l) { return tx(c.title, l) || tx(c.title, 'tr') || c.slug; };
+  var cpLink = function (l, k) { return CP.filter(function (c) { return c[k] === '1' && tx(c.html, l); }).map(function (c) { return '<a href="' + (l === 'tr' ? '' : '/' + l) + '/' + c.slug + '/">' + esc(cpTitle(c, l)) + '</a>'; }).join(''); };
 
   function asset(src) {
     if (!src) return '';
@@ -183,6 +207,7 @@ function build(data, opt) {
   }
 
   function page(o) {
+    if (o.raw != null) return emit(o.raw, o);
     var l = o.l, ui = U[l], alts = o.alts || {}, url = base + o.path, desc = clip(plain(o.desc || ''), 158);
     var wa = S.whatsapp ? 'https://wa.me/' + esc(S.whatsapp) : '';
     var h = '<!doctype html><html lang="' + l + '" dir="' + L[l].dir + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
@@ -198,21 +223,26 @@ function build(data, opt) {
     h += '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Jost:wght@300;400;500&display=swap"><link rel="stylesheet" href="/style.css"><script>document.documentElement.className+=" js"</script><noscript><style>.js .rv{opacity:1!important;transform:none!important}</style></noscript>';
     (o.ld || []).forEach(function (j) { h += '<script type="application/ld+json">' + JSON.stringify(j).replace(/</g, '\\u003c') + '</script>'; });
     if (seo.gaId) h += '<script>window.AUR_GA="' + esc(seo.gaId) + '"</script>';
+    if (CU.head) h += CU.head;
+    if (o.headX) h += o.headX;
     var ann = tx(S.announce, l);
     h += '</head><body>' + (ann ? '<div class="ann">' + esc(ann) + '</div>' : '') + '<a class="skip" href="#main">' + ui.skip + '</a><header class="hdr"><div class="hd"><button class="mb" aria-label="Menu" aria-expanded="false">☰</button><nav class="mn" aria-label="' + ui.cats + '">';
     catList.filter(function (c) { return cname(c, l) && c.items.some(function (p) { return has(p, l); }); }).slice(0, 4).forEach(function (c) { var vs = vsubs(c, l); if (vs.length) h += '<div class="dd"><a href="' + curl(c, l) + '">' + esc(cname(c, l)) + '</a><div class="dm">' + vs.map(function (sc) { return '<a href="' + surl(sc, l) + '">' + esc(sname(sc, l)) + '</a>'; }).join('') + '</div></div>'; else h += '<a href="' + curl(c, l) + '">' + esc(cname(c, l)) + '</a>'; });
-    h += '<a href="' + pre(l) + '/urunler/">' + ui.all + '</a></nav><a class="brand" href="' + pre(l) + '/">' + (logo ? '<img src="' + esc(logo) + '" alt="' + esc(S.name) + '" style="height:' + (Math.min(160, Math.max(24, +S.logoSize || 64))) + 'px;--lm:' + (Math.min(120, Math.max(24, +S.logoSizeM || Math.min(54, +S.logoSize || 54)))) + 'px">' : '') + (logo && S.logoOnly === '1' ? '' : '<span>' + esc(S.name) + '</span>') + '</a><div class="lg">';
+    h += '<a href="' + pre(l) + '/urunler/">' + ui.all + '</a>' + cpLink(l, 'menu') + '</nav><a class="brand" href="' + pre(l) + '/">' + (logo ? '<img src="' + esc(logo) + '" alt="' + esc(S.name) + '" style="height:' + (Math.min(160, Math.max(24, +S.logoSize || 64))) + 'px;--lm:' + (Math.min(120, Math.max(24, +S.logoSizeM || Math.min(54, +S.logoSize || 54)))) + 'px">' : '') + (logo && S.logoOnly === '1' ? '' : '<span>' + esc(S.name) + '</span>') + '</a><div class="lg">';
     langs.forEach(function (k) { h += '<a class="' + (k === l ? 'on' : '') + '" hreflang="' + k + '" lang="' + k + '" href="' + (alts[k] || pre(k) + '/') + '">' + k.toUpperCase() + '</a>'; });
     var about = clip(plain(tx(S.about, l) || ui.storyD.replace('{store}', S.name)), 150);
     h += '</div></div></header><main id="main">' + (o.full ? o.body : '<div class="w">' + o.body + '</div>') + '</main><footer><div class="w"><div class="fg"><div><h4>' + esc(S.name) + '</h4><p>' + esc(about) + '</p></div><div><h4>' + ui.quick + '</h4><a href="' + pre(l) + '/">' + ui.home + '</a><a href="' + pre(l) + '/urunler/">' + ui.all + '</a>';
     catList.forEach(function (c) { if (!cname(c, l) || !c.items.some(function (p) { return has(p, l); })) return; h += '<a href="' + curl(c, l) + '">' + esc(cname(c, l)) + '</a>'; vsubs(c, l).forEach(function (sc) { h += '<a class="s" href="' + surl(sc, l) + '">' + esc(sname(sc, l)) + '</a>'; }); });
-    h += '</div><div><h4>' + ui.contact + '</h4>' + (wa ? '<a rel="nofollow noopener" href="' + wa + '">WhatsApp</a>' : '') + (S.email ? '<a href="mailto:' + esc(S.email) + '">' + esc(S.email) + '</a>' : '') + (S.instagram ? '<a rel="noopener" href="' + esc(S.instagram) + '">Instagram</a>' : '') + '</div></div>' + legalFoot(l) + '<div class="cp">© ' + new Date().getFullYear() + ' ' + esc(S.name) + '. ' + ui.rights + '</div></div></footer>' + banner(l) + '<script src="/app.js"></script></body></html>';
+    h += cpLink(l, 'footer') + '</div><div><h4>' + ui.contact + '</h4>' + (wa ? '<a rel="nofollow noopener" href="' + wa + '">WhatsApp</a>' : '') + (S.email ? '<a href="mailto:' + esc(S.email) + '">' + esc(S.email) + '</a>' : '') + (S.instagram ? '<a rel="noopener" href="' + esc(S.instagram) + '">Instagram</a>' : '') + '</div></div>' + legalFoot(l) + '<div class="cp">© ' + new Date().getFullYear() + ' ' + esc(S.name) + '. ' + ui.rights + '</div></div></footer>' + banner(l) + (CU.body || '') + (hasCjs ? '<script src="/custom.js" defer></script>' : '') + '<script src="/app.js"></script>' + (o.bodyX || '') + '</body></html>';
+    emit(h, o);
+  }
+  function emit(h, o) {
     if (opt.rel !== false) {
       var depth = o.path.split('/').filter(Boolean).length, R = depth ? new Array(depth + 1).join('../') : './';
       h = h.replace(/(href|src|data-big)="\/(?!\/)([^"]*)"/g, function (m, a, u) { if (opt.local && (u === '' || /\/$/.test(u))) u += 'index.html'; return a + '="' + R + u + '"'; });
     }
     var f = o.path.replace(/^\//, '') + (/\/$/.test(o.path) ? 'index.html' : ''); files[f] = h; report.pages++;
-    if (!o.noindex) sitemap.push({ path: o.path, alts: alts, img: o.sitemapImg });
+    if (!o.noindex) sitemap.push({ path: o.path, alts: o.alts || {}, img: o.sitemapImg });
   }
     var sitemap = [];
   var allAlts = function (fn) { var a = {}; langs.forEach(function (k) { var v = fn(k); if (v) a[k] = v; }); return a; };
@@ -220,31 +250,42 @@ function build(data, opt) {
   langs.forEach(function (l) {
     var ui = U[l], lp = P.filter(function (p) { return has(p, l); });
     var hi = lp.filter(function (p) { return p.images[0]; }), sub = tx(S.heroSub, l), ttl1 = tx(S.heroTitle, l) || S.name;
+    var B = S.banners || {};
+    var pick = function (k, fb) {
+      var b = B[k] || {};
+      if (typeof b.img === 'string' && b.img) return { src: b.img, alt: tx(b.alt, l) || S.name };
+      if (b.code) { var q = lp.filter(function (x) { return x.code && x.code === String(b.code).trim() && x.images[0]; })[0]; if (q) return { src: q.images[0], alt: tx(q.name, l) }; }
+      return fb || null;
+    };
+    var h1 = pick('hero1', hi[0]), h2 = pick('hero2', hi[1]);
+    var wb = B.wide || {}, wsrc = typeof wb.img === 'string' ? wb.img : '', wlink = wb.link && typeof wb.link === 'object' ? tx(wb.link, l) : '';
+    if (!/^(https?:\/\/|\/|#)/.test(wlink)) wlink = '';
+    var wide = wsrc ? '<div class="wb" style="--wh:' + clampN(wb.h, 80, 900, 320) + 'px;--whm:' + clampN(wb.hm, 60, 600, 180) + 'px">' + (wlink ? '<a href="' + esc(wlink) + '">' : '') + '<img src="' + esc(wsrc) + '" alt="' + esc(tx(wb.alt, l) || S.name) + '" loading="lazy">' + (wlink ? '</a>' : '') + '</div>' : '';
     var wa = S.whatsapp ? 'https://wa.me/' + esc(S.whatsapp) : '';
     var prices = lp.map(function (p) { return sale(p) ? p.sale : p.price; }).filter(function (x) { return x > 0; }), minP = prices.length ? Math.min.apply(null, prices) : 0;
     var cl = catList.filter(function (c) { return cname(c, l) && c.items.some(function (p) { return has(p, l); }); });
     var chips = function (c, cur) { var vs = vsubs(c, l); return vs.length ? '<div class="chips">' + (cur ? '<a href="' + curl(c, l) + '">' + esc(cname(c, l)) + '</a>' : '') + vs.map(function (sc) { return '<a' + (sc === cur ? ' class="on"' : '') + ' href="' + surl(sc, l) + '">' + esc(sname(sc, l)) + '<small>' + sc.items.filter(function (p) { return has(p, l); }).length + '</small></a>'; }).join('') + '</div>' : ''; };
-    var ar = function (p, c) { return '<div class="arch ' + c + '"><img src="' + esc(p.images[0]) + '" alt="' + esc(tx(p.name, l)) + '" width="600" height="800"' + (c === 'a1' ? ' fetchpriority="high"' : '') + '></div>'; };
-    var hero = '<section class="hero"><div><div class="eyebrow">' + esc(tx(S.eyebrow, l) || S.name) + '</div><h1>' + esc(ttl1).replace(/\*(.+?)\*/g, '<em>$1</em>') + '</h1>' + (sub ? '<p class="lead">' + esc(sub) + '</p>' : '') + '<div class="cta"><a class="btn" href="' + pre(l) + '/urunler/">' + ui.hero1 + '</a>' + (wa ? '<a class="btn o" rel="nofollow noopener" href="' + wa + '">' + ui.hero2 + '</a>' : '') + '</div></div><div class="hc">' + (hi[0] ? ar(hi[0], 'a1') : '') + (hi[1] ? ar(hi[1], 'a2') : '') + (minP ? '<div class="bdg"><small>' + ui.from + '</small><br><b class="sf" style="font-size:26px">' + money(minP, l) + '</b></div>' : '') + '</div></section>';
+    var ar = function (p, c) { return '<div class="arch ' + c + '"><img src="' + esc(p.src || p.images[0]) + '" alt="' + esc(p.src ? p.alt : tx(p.name, l)) + '" width="600" height="800"' + (c === 'a1' ? ' fetchpriority="high"' : '') + '></div>'; };
+    var hero = '<section class="hero"><div><div class="eyebrow">' + esc(tx(S.eyebrow, l) || S.name) + '</div><h1>' + esc(ttl1).replace(/\*(.+?)\*/g, '<em>$1</em>') + '</h1>' + (sub ? '<p class="lead">' + esc(sub) + '</p>' : '') + '<div class="cta"><a class="btn" href="' + pre(l) + '/urunler/">' + ui.hero1 + '</a>' + (wa ? '<a class="btn o" rel="nofollow noopener" href="' + wa + '">' + ui.hero2 + '</a>' : '') + '</div></div><div class="hc">' + (h1 ? ar(h1, 'a1') : '') + (h2 ? ar(h2, 'a2') : '') + (minP ? '<div class="bdg"><small>' + ui.from + '</small><br><b class="sf" style="font-size:26px">' + money(minP, l) + '</b></div>' : '') + '</div></section>';
     var words = cl.map(function (c) { return cname(c, l); }); if (!words.length) words = [S.name];
     var strip = ''; for (var r = 0; r < Math.max(1, Math.ceil(8 / words.length)); r++) words.forEach(function (w) { strip += '<span>' + esc(w) + '<i>✦</i></span>'; });
     var mq = '<div class="mq" aria-hidden="true"><div>' + strip + strip + '</div></div>';
     var rest = '';
-    if (cl.length) rest += '<div class="sh rv"><h2>' + ui.coll + '</h2></div><div class="mo">' + cl.slice(0, 5).map(function (c) { var it = c.items.filter(function (p) { return has(p, l); }), f = it.filter(function (p) { return p.images[0]; })[0]; return '<a class="rv" href="' + curl(c, l) + '">' + (f ? '<img src="' + esc(f.images[0]) + '" alt="' + esc(cname(c, l)) + '" loading="lazy" width="600" height="600">' : '') + '<b><small>' + it.length + ' ' + ui.items + '</small>' + esc(cname(c, l)) + '</b></a>'; }).join('') + '</div>';
+    if (cl.length) rest += '<div class="sh rv"><h2>' + ui.coll + '</h2></div><div class="mo">' + cl.slice(0, 5).map(function (c) { var it = c.items.filter(function (p) { return has(p, l); }), f = it.filter(function (p) { return p.images[0]; })[0], ci = nmap(data.catImg, c.name), cs = typeof ci === 'string' && ci ? ci : (f ? f.images[0] : ''); return '<a class="rv" href="' + curl(c, l) + '">' + (cs ? '<img src="' + esc(cs) + '" alt="' + esc(cname(c, l)) + '" loading="lazy" width="600" height="600">' : '') + '<b><small>' + it.length + ' ' + ui.items + '</small>' + esc(cname(c, l)) + '</b></a>'; }).join('') + '</div>';
     var allSubs = []; cl.forEach(function (c) { vsubs(c, l).forEach(function (sc) { allSubs.push(sc); }); });
     if (allSubs.length) rest += '<div class="chips rv" style="margin-top:22px">' + allSubs.slice(0, 18).map(function (sc) { return '<a href="' + surl(sc, l) + '">' + esc(sname(sc, l)) + '<small>' + esc(cname(sc.parent, l)) + '</small></a>'; }).join('') + '</div>';
     rest += '<div class="sh rv"><h2>' + ui.newin + '</h2><a href="' + pre(l) + '/urunler/">' + ui.all + ' →</a></div><div class="grid">' + lp.slice(0, 8).map(function (p) { return card(p, l); }).join('') + '</div>';
     var fc = cats[S.featuredCat] && cname(cats[S.featuredCat], l) ? cats[S.featuredCat] : (cl[1] || cl[0]);
-    if (fc) { var fi = fc.items.filter(function (p) { return has(p, l) && p.images[0]; }); if (fi.length) rest += '<section class="ed rv"><div><div class="eyebrow">' + ui.col + '</div><h2>' + esc(cname(fc, l)) + '</h2><p>' + esc(tx(nmap(data.catDesc, fc.name), l) || ui.hero1) + '</p><div class="cta"><a class="btn" href="' + curl(fc, l) + '">' + ui.explore + '</a></div></div><div class="imgs">' + ar(fi[0], '') + (fi[1] || fi[0] ? ar(fi[1] || fi[0], '') : '') + '</div></section>'; }
+    if (fc) { var fi = fc.items.filter(function (p) { return has(p, l) && p.images[0]; }); if (fi.length) rest += '<section class="ed rv"><div><div class="eyebrow">' + ui.col + '</div><h2>' + esc(cname(fc, l)) + '</h2><p>' + esc(tx(nmap(data.catDesc, fc.name), l) || ui.hero1) + '</p><div class="cta"><a class="btn" href="' + curl(fc, l) + '">' + ui.explore + '</a></div></div><div class="imgs">' + ar(pick('ed1', fi[0]), '') + ar(pick('ed2', fi[1] || fi[0]), '') + '</div></section>'; }
     var ic = ['<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>', '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>', '<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M12 9v12M3 13h18M12 9c-3 0-4-4-1.5-4S12 9 12 9zm0 0c3 0 4-4 1.5-4S12 9 12 9z"/>', '<path d="M4 5h16v11H9l-5 4z"/>'];
     rest += '<div class="vs" style="margin-top:70px">' + [ui.v1, ui.v2, ui.v3, ui.v4].map(function (v, i) { return '<div class="v rv"><svg viewBox="0 0 24 24" aria-hidden="true">' + ic[i] + '</svg><h3>' + v[0] + '</h3><p>' + v[1] + '</p></div>'; }).join('') + '</div>';
-    var sp = hi[2] || hi[0], ab = tx(S.about, l) || ui.storyD.replace('{store}', S.name);
+    var sp = pick('story', hi[2] || hi[0]), ab = tx(S.about, l) || ui.storyD.replace('{store}', S.name);
     rest += '<section class="st rv">' + (sp ? ar(sp, '') : '<div></div>') + '<div><div class="eyebrow">' + ui.story + '</div><h2>' + esc(S.name) + '</h2><p>' + esc(ab) + '</p></div></section>';
     rest += '<section class="cb rv"><h2>' + ui.ctaT + '</h2><p>' + ui.ctaD + '</p>' + (wa ? '<a class="btn" rel="nofollow noopener" href="' + wa + '">' + ui.hero2 + '</a>' : '') + '</section>';
     var sameAs = String(seo.sameAs || '').split(/[\s,]+/).filter(Boolean); if (S.instagram) sameAs.push(S.instagram);
     var org = { '@context': 'https://schema.org', '@type': 'Organization', name: S.name, url: base + '/', logo: logo ? abs(logo) : undefined, sameAs: sameAs.length ? sameAs : undefined };
     var web = { '@context': 'https://schema.org', '@type': 'WebSite', name: S.name, url: base + pre(l) + '/', inLanguage: l };
-    page({ l: l, path: pre(l) + '/', home: true, full: true, title: tx(seo.homeTitle, l) || S.name, desc: tx(seo.siteDesc, l) || sub, ld: [org, web], body: '<div class="w">' + hero + '</div>' + mq + '<div class="w">' + rest + '</div>', alts: allAlts(function (k) { return pre(k) + '/'; }) });
+    page({ l: l, path: pre(l) + '/', home: true, full: true, title: tx(seo.homeTitle, l) || S.name, desc: tx(seo.siteDesc, l) || sub, ld: [org, web], body: '<div class="w">' + hero + wide + '</div>' + mq + '<div class="w">' + rest + '</div>', alts: allAlts(function (k) { return pre(k) + '/'; }) });
 
         page({ l: l, path: pre(l) + '/urunler/', title: ttl(ui.all), desc: tx(seo.siteDesc, l), body: '<nav class="crumb"><a href="' + pre(l) + '/">' + ui.home + '</a> › ' + ui.all + '</nav><h1>' + ui.all + '</h1><h2 class="s" style="display:none"></h2><div class="grid" style="margin-top:20px">' + lp.map(function (p) { return card(p, l); }).join('') + '</div>', alts: allAlts(function (k) { return pre(k) + '/urunler/'; }) });
 
@@ -291,13 +332,36 @@ function build(data, opt) {
     page({ l: 'tr', path: '/' + d.slug + '/', title: ttl(t), desc: t + ' — ' + (S.name || ''), body: '<nav class="crumb"><a href="/">' + U.tr.home + '</a> › ' + esc(t) + '</nav><article class="legal"><h1>' + esc(t) + '</h1>' + d.html + '</article>', alts: {} });
   });
 
+  /* Özel sayfalar */
+  CP.forEach(function (c) {
+    langs.forEach(function (l) {
+      var html = tx(c.html, l); if (!html) return;
+      var ui = U[l], title = cpTitle(c, l), pth = pre(l) + '/' + c.slug + '/', ni = c.noindex === '1', lay = c.layout || 'text';
+      var desc = tx(c.desc, l) || html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ');
+      var alts = allAlts(function (k) { return tx(c.html, k) ? pre(k) + '/' + c.slug + '/' : ''; });
+      var px = c.css ? '<style>' + cssx(c.css) + '</style>' : '', hx = String(c.head || '');
+      var jx = String(c.js || '').trim() ? '<script>' + jsx(c.js) + '</script>' : '';
+      if (lay === 'raw') {
+        var hl = Object.keys(alts).map(function (k) { return '<link rel="alternate" hreflang="' + k + '" href="' + base + alts[k] + '">'; }).join('');
+        var doc = /<html[\s>]/i.test(html) ? html : '<!doctype html><html lang="' + l + '" dir="' + L[l].dir + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(title) + '</title><meta name="description" content="' + esc(clip(plain(desc), 158)) + '"><meta name="robots" content="' + (ni ? 'noindex,follow' : 'index,follow') + '">' + (ni ? '' : '<link rel="canonical" href="' + base + pth + '">' + hl) + px + hx + '</head><body>' + html + jx + '</body></html>';
+        page({ l: l, path: pth, raw: doc, noindex: ni, alts: alts });
+        return;
+      }
+      var body = lay === 'text'
+        ? '<nav class="crumb"><a href="' + pre(l) + '/">' + ui.home + '</a> › ' + esc(title) + '</nav><article class="legal cpg">' + (c.hideTitle === '1' ? '' : '<h1>' + esc(title) + '</h1>') + html + '</article>'
+        : '<div class="cpg">' + html + '</div>';
+      page({ l: l, path: pth, title: ttl(title), desc: desc, noindex: ni, full: lay === 'wide', body: body, alts: alts, headX: px + hx, bodyX: jx });
+    });
+  });
+
   files['404.html'] = '<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>404 — ' + esc(S.name) + '</title><link rel="stylesheet" href="/style.css"></head><body><main class="w hero"><h1>404</h1><p>' + U.tr.nfd + ' <a href="/">' + U.tr.home + '</a></p></main></body></html>';
   var today = new Date().toISOString().slice(0, 10);
   files['sitemap.xml'] = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n' + sitemap.map(function (u) {
     return '<url><loc>' + base + u.path + '</loc><lastmod>' + today + '</lastmod>' + Object.keys(u.alts).map(function (k) { return '<xhtml:link rel="alternate" hreflang="' + k + '" href="' + base + u.alts[k] + '"/>'; }).join('') + (u.img ? '<image:image><image:loc>' + esc(abs(u.img)) + '</image:loc></image:image>' : '') + '</url>';
   }).join('\n') + '\n</urlset>\n';
   files['robots.txt'] = 'User-agent: *\nAllow: /\n\nSitemap: ' + base + '/sitemap.xml\n';
-  files['style.css'] = CSS.replace('--ac:#b08d57', '--ac:' + (S.accent || '#b08d57'));
+  files['style.css'] = CSS.replace('--ac:#b08d57', '--ac:' + (S.accent || '#b08d57')) + '\n' + bcss + (String(CU.css || '').trim() ? '\n/* özel CSS */\n' + CU.css + '\n' : '');
+  if (hasCjs) files['custom.js'] = String(CU.js);
 
   /* Google Merchant Center ürün akışı (RSS 2.0 + g: alanları). Her dil için ayrı dosya. */
   report.feed = {};
@@ -336,6 +400,6 @@ function build(data, opt) {
   report.sitemapUrls = sitemap.length;
   return { files: files, report: report };
 }
-root.AurelyaBuild = { build: build, slugify: slugify, LANGS: L };
+root.AurelyaBuild = { build: build, slugify: slugify, LANGS: L, reserved: CP_RESERVED };
 if (typeof module !== 'undefined') module.exports = root.AurelyaBuild;
 })(typeof window !== 'undefined' ? window : globalThis);
