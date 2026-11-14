@@ -669,7 +669,7 @@ async function run(w) {
 
 function audit() {
   var S = D.settings, o = [], add = function (c, m) { o.push('<div class="' + c + '">' + (c === 'ok' ? '✓ ' : '• ') + m + '</div>'); };
-  /example\.com|aurelyahome/.test(S.siteUrl || '') || !S.siteUrl ? add('bad', 'Alan adı örnek değer: Site Ayarları → Logo ve Marka bölümüne gerçek adresinizi yazın.') : add('ok', 'Alan adı ayarlı.');
+  /example\.com|modaedo/.test(S.siteUrl || '') || !S.siteUrl ? add('bad', 'Alan adı örnek değer: Site Ayarları → Logo ve Marka bölümüne gerçek adresinizi yazın.') : add('ok', 'Alan adı ayarlı.');
   !S.logo ? add('bad', 'Logo yok.') : add('ok', 'Logo var.');
   /^905000000000$/.test(S.whatsapp || '') || !S.whatsapp ? add('bad', 'WhatsApp numarası örnek/boş.') : add('ok', 'WhatsApp numarası ayarlı.');
   (function () { var np = D.products.filter(function (p) { return !p.gtin && !p.mpn; }).length, nb = D.products.filter(function (p) { return !p.brand; }).length, ng = D.products.filter(function (p) { return !p.gcat; }).length; np && add('warn', np + ' üründe GTIN/MPN yok (Merchant akışında identifier_exists=no yazılır; barkodu varsa girin).'); !(S.merchant && S.merchant.gcat) && ng && add('warn', 'Google ürün kategorisi tanımlı değil: Site Ayarları → Google Merchant.'); nb && !(S.merchant && S.merchant.brand) && add('warn', 'Marka girilmemiş ürünlerde mağaza adı marka olarak kullanılır.'); })();

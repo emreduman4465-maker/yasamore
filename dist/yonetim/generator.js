@@ -1,4 +1,4 @@
-/* Aurelya — statik site üretici (tarayıcıda ve Node’da çalışır). build(data) → {dosyaYolu: metin | {b64}} */
+/* Modaedo — statik site üretici (tarayıcıda ve Node’da çalışır). build(data) → {dosyaYolu: metin | {b64}} */
 (function (root) {
 'use strict';
 var L = { tr:{n:'Türkçe',dir:'ltr',loc:'tr_TR'}, en:{n:'English',dir:'ltr',loc:'en_US'}, de:{n:'Deutsch',dir:'ltr',loc:'de_DE'}, fr:{n:'Français',dir:'ltr',loc:'fr_FR'}, ar:{n:'العربية',dir:'rtl',loc:'ar_AR'} };

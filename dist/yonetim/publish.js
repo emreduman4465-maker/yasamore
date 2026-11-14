@@ -1,4 +1,4 @@
-/* Aurelya — GitHub'a tek commit ile yayınlama (tarayıcıda ve Node'da çalışır).
+/* Modaedo — GitHub'a tek commit ile yayınlama (tarayıcıda ve Node'da çalışır).
    Yalnızca değişen dosyaları yükler; eski yayından kalan, artık üretilmeyen dosyaları siler.
    Sizin diğer dosyalarınıza (CNAME, yonetim/ klasörü vb.) dokunmaz. */
 (function (root) {
