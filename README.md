@@ -57,3 +57,11 @@ Merchant başlığı, görsel alt metni.
 **Depo ve Veritabanı:** ürün silinince görselleri depodan otomatik silinir; ayrıca kullanılmayan görselleri tarayıp temizleyen araç ve veritabanı boyutu göstergesi vardır.
 
 **Toplu otomatik SEO (Site Ayarları → SEO):** tüm ürünler ve diller için SEO başlığı/açıklaması, Merchant başlığı ve görsel alt metni tek tıkla üretilir.
+
+## Son sürüm eklemeleri
+**Tasarım ve Özel Kod (Site Ayarları → Tasarım ve Özel Kod):** renkler, yazı tipleri ve boyutları, içerik genişliği, boşluklar, ürün kartı ızgarası (mobilde 1/2 sütun), görsel oranı ve köşe yuvarlaklığı, buton ölçüleri ve özel CSS / JavaScript / Head / Sayfa sonu HTML alanları.
+Burada yapılan her değişiklik **taslaktır**: sağdaki canlı önizlemede (bilgisayar / tablet / telefon, sayfa seçmeli, bağlantılara tıklayarak gezilebilir) anında görünür, siteyi etkilemez. **Aktif et** düğmesi taslağı siteye yansıtır ve yayına girdiğini doğrular. **Taslağı yayındakine döndür** taslağı atar.
+
+**WhatsApp ile sipariş ver (tüm ürün kartları):** ana sayfa, kategori, tüm ürünler ve benzer ürünler listelerindeki her ürünün altında buton çıkar; basınca WhatsApp'ta mesaj hazır açılır (ürün adı, kodu ve **o ürünün bağlantısı**). Yazı/renk/boyut Tasarım sekmesinden, numara ve mesaj şablonu İletişim sekmesinden ayarlanır. Şablonda {link} olmasa bile ürün bağlantısı mesajın sonuna eklenir. Stokta olmayan üründe buton "Stokta yok" olur.
+
+**Google Merchant XML:** Site Ayarları → Google Merchant → "XML akışı: Aktif". Adres (`/google-merchant.xml`) tarayıcıda **indirmeden açılır**, Google robotlarına XML olarak sunulur, 40 dakikada bir yenilenir. Aynı sekmedeki **Adresi test et** düğmesi durumu (HTTP kodu, içerik türü, ürün sayısı, veri kaynağı) gösterir. Akış pasifse adres açıklayıcı bir 404 metni verir.

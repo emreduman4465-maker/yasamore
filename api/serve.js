@@ -39,18 +39,35 @@ async function getCache() {
   }
   return cache;
 }
-const TYPES = { html: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', js: 'application/javascript; charset=utf-8', xml: 'application/xml; charset=utf-8', txt: 'text/plain; charset=utf-8', json: 'application/json; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' };
+const TYPES = { html: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', js: 'application/javascript; charset=utf-8', xml: 'text/xml; charset=utf-8', txt: 'text/plain; charset=utf-8', json: 'application/json; charset=utf-8', svg: 'image/svg+xml', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', ico: 'image/x-icon' };
 
 module.exports = async (req, res) => {
   const c = await getCache(), files = c.files;
   let p = decodeURIComponent(String(req.query.path || '')).replace(/^\/+/, '');
   const cands = p === '' ? ['index.html'] : p.endsWith('/') ? [p + 'index.html'] : [p, p + '/index.html'];
   let key = cands.find(k => files[k] != null), status = 200;
+  /* Google Merchant akışı pasifse: site 404 sayfası yerine açıklayıcı bir yanıt ver (neden açılmadığı belli olsun). */
+  if (!key && /(^|\/)google-merchant\.xml$/.test(p)) {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Data-Source', c.src);
+    res.status(404).send('Google Merchant XML akisi pasif. Yonetim paneli > Site Ayarlari > Google Merchant > "XML akisi" alanini Aktif yapin.' + (c.src !== 'supabase' ? '\n(Uyari: site canli veriyi okuyamiyor, yedek veri kullaniliyor. supabase-kurulum.sql icindeki 6. adimi calistirin.)' : ''));
+    return;
+  }
   if (!key) { key = files['404.html'] != null ? '404.html' : null; status = 404; }
   if (!key) { res.status(404).send('Not found'); return; }
   const v = files[key], ext = key.split('.').pop().toLowerCase();
   res.setHeader('Content-Type', TYPES[ext] || 'application/octet-stream');
   res.setHeader('X-Data-Source', c.src); /* supabase = canlı veri, fallback = yedek (panel değişiklikleri görünmez) */
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1, must-revalidate');
+  if (ext === 'xml' && /google-merchant\.xml$/.test(key)) {
+    /* Merchant akışı: tarayıcıda DOSYA İNDİRMEDEN açılır (düz metin olarak gösterilir), Google/Merchant robotları ise XML olarak alır.
+       Her 40 dakikada bir yenilenir. */
+    const browser = /text\/html/.test(String(req.headers.accept || ''));
+    res.setHeader('Content-Type', browser ? 'text/plain; charset=utf-8' : 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', 'inline; filename="google-merchant.xml"');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Vary', 'Accept');
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=2400, stale-while-revalidate=600');
+  } else res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=1, must-revalidate');
   res.status(status).send(typeof v === 'string' ? v : Buffer.from(v.b64, 'base64'));
 };
