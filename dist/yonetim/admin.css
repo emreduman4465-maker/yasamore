@@ -54,3 +54,16 @@ body.stwide main{max-width:1600px}
 .stsh.on{border-color:var(--ac,#b08d57);box-shadow:0 0 0 2px var(--ac,#b08d57) inset}
 @media(max-width:1100px){.stu{grid-template-columns:1fr}.stv{position:static;order:-1}.stp{max-height:none}}
 .stp .r{flex-wrap:wrap}.stp .r input[type=file]{max-width:100%}
+
+/* Tasarım ve Özel Kod: ayarlar solda, canlı önizleme sağda */
+body.dswide main{max-width:1700px}
+.dsl{display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:16px;align-items:start}
+.dsctl{max-height:calc(100vh - 170px);overflow:auto;padding-right:4px}
+.dsp{position:sticky;top:10px}
+.dsg>summary{cursor:pointer;list-style:none}.dsg>summary::-webkit-details-marker{display:none}.dsg>summary b:before{content:"▸ ";color:var(--ac)}.dsg[open]>summary b:before{content:"▾ "}
+.dsg .g{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.dsl .row>input[type=color]{width:54px;height:34px;padding:2px;flex:none;min-width:0;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+#dsbox{margin:0 auto;max-width:100%;transition:width .2s}
+#dsf{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff;display:block}
+.ftr{font-size:12px;padding:0 0 8px}
+@media(max-width:1100px){.dsl{grid-template-columns:1fr}.dsp{position:static}.dsctl{max-height:none}}
