@@ -108,6 +108,59 @@ function legalDocs(S, hasGa) {
   return { docs: LGL.map(function (x) { return { slug: x[0], key: x[1], html: D[x[1]] }; }), missing: miss };
 }
 
+/* ===== Yasamore Pro eklentileri: banner stüdyosu CSS'i, WhatsApp adet, stok adedi ===== */
+function waDigits(v) { var d = String(v || '').replace(/\D/g, ''); if (d.length === 11 && d.charAt(0) === '0') d = '90' + d.slice(1); else if (d.length === 10 && d.charAt(0) === '5') d = '90' + d; return d; }
+var WAT = { tr: 'Merhaba, {urun} ({kod}) ürününden {adet} adet sipariş vermek istiyorum. {link}', en: 'Hello, I would like to order {adet} x {urun} ({kod}). {link}', de: 'Hallo, ich möchte {adet} x {urun} ({kod}) bestellen. {link}', fr: 'Bonjour, je souhaite commander {adet} x {urun} ({kod}). {link}', ar: 'مرحباً، أود طلب {adet} × {urun} ({kod}). {link}' };
+var QTYL = { tr: 'Adet', en: 'Qty', de: 'Menge', fr: 'Quantité', ar: 'الكمية' };
+var OOSL = { tr: 'Stokta yok', en: 'Out of stock', de: 'Nicht auf Lager', fr: 'Rupture de stock', ar: 'غير متوفر' };
+var LOWL = { tr: 'Son {n} adet kaldı', en: 'Only {n} left', de: 'Nur noch {n} verfügbar', fr: 'Plus que {n} en stock', ar: 'بقي {n} فقط' };
+var QJS = "(function(){var w=document.getElementById('wab');if(!w)return;var q=document.getElementById('qn'),b=w.getAttribute('data-wa');function n(){var m=+q.max||99,v=Math.floor(+q.value)||1;return Math.max(1,Math.min(m,v))}function u(){w.href=b.split('%7Badet%7D').join(n())}document.addEventListener('click',function(e){var t=e.target;if(t&&t.getAttribute&&t.getAttribute('data-q')){q.value=Math.max(1,Math.min(+q.max||99,n()+ +t.getAttribute('data-q')));u()}});if(q){q.addEventListener('input',u);q.addEventListener('change',function(){q.value=n();u()})}u()})();";
+var EXTRA_CSS = '.arch a{display:block;width:100%;height:100%}.bgx{position:absolute;left:12px;top:12px;z-index:2;background:var(--ac);color:#fff;padding:4px 11px;border-radius:99px;font:500 12px Jost,sans-serif;letter-spacing:.06em}.qty{display:flex;align-items:center;gap:8px;margin:16px 0 4px}.qty span{font-size:13px;color:var(--mut);margin-right:4px}.qty button{width:38px;height:38px;border:1px solid var(--line);background:var(--card);border-radius:50%;font-size:18px;line-height:1;cursor:pointer;color:var(--ink)}.qty input{width:64px;height:38px;text-align:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:500 16px Jost,sans-serif;-moz-appearance:textfield}.qty input::-webkit-outer-spin-button,.qty input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}.low{color:#b4532a;font-size:13px;margin:4px 0 0}.btn.dis{opacity:.55;pointer-events:none;cursor:not-allowed}';
+function polyStar(n, inner) { var a = []; for (var i = 0; i < n * 2; i++) { var r = i % 2 ? inner : 50, t = -Math.PI / 2 + i * Math.PI / n; a.push((50 + r * Math.cos(t)).toFixed(1) + '% ' + (50 + r * Math.sin(t)).toFixed(1) + '%'); } return 'polygon(' + a.join(',') + ')'; }
+var HEART = (function () { var a = []; for (var i = 0; i < 40; i++) { var t = i / 40 * 2 * Math.PI, x = 16 * Math.pow(Math.sin(t), 3), y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t); a.push((50 + x * 2.9).toFixed(1) + '% ' + (46 - y * 2.9).toFixed(1) + '%'); } return 'polygon(' + a.join(',') + ')'; })();
+var SHAPES = {
+  arch: { r: '999px 999px 18px 18px' }, round: { r: '22px' }, square: { r: '0' }, circle: { r: '50%', ar: '1' }, ellipse: { r: '50%' }, pill: { r: '999px' },
+  blob: { r: '63% 37% 54% 46% / 55% 48% 52% 45%' }, leaf: { r: '0 100% 0 100%' }, ticket: { r: '14px 80px 14px 80px' },
+  star: { c: polyStar(5, 21), ar: '1' }, star8: { c: polyStar(8, 33), ar: '1' }, burst: { c: polyStar(14, 41), ar: '1' }, heart: { c: HEART, ar: '1' },
+  hexagon: { c: 'polygon(25% 5%,75% 5%,100% 50%,75% 95%,25% 95%,0 50%)' }, octagon: { c: 'polygon(30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%)' },
+  diamond: { c: 'polygon(50% 0,100% 50%,50% 100%,0 50%)' }, triangle: { c: 'polygon(50% 0,100% 100%,0 100%)' },
+  cross: { c: 'polygon(35% 0,65% 0,65% 35%,100% 35%,100% 65%,65% 65%,65% 100%,35% 100%,35% 65%,0 65%,0 35%,35% 35%)' },
+  arrow: { c: 'polygon(0 20%,60% 20%,60% 0,100% 50%,60% 100%,60% 80%,0 80%)' }, wave: { c: 'polygon(0 8%,12% 0,25% 8%,38% 16%,50% 8%,62% 0,75% 8%,88% 16%,100% 8%,100% 92%,88% 100%,75% 92%,62% 84%,50% 92%,38% 100%,25% 92%,12% 84%,0 92%)' }
+};
+var okClip = function (s) { s = String(s || '').trim(); return /^(polygon|circle|ellipse|inset|path)\([0-9a-z%.,\s\-\/()]*\)$/i.test(s) && !/url\(|expression/i.test(s) ? s : ''; };
+var okRad = function (s) { s = String(s || '').trim(); return /^[0-9a-z%.\s\/]+$/i.test(s) ? s : ''; };
+var nm = function (v) { v = parseFloat(v); return isFinite(v) ? v : null; };
+var cl2 = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+var SLOTS = ['hero1', 'hero2', 'ed1', 'ed2', 'story'];
+/* Banner stüdyosu: her slot için şekil, sığdırma, boyut, konum (masaüstü/mobil ayrı) CSS'i üretir. */
+function bannerCss(BN) {
+  var css = '';
+  SLOTS.forEach(function (k) {
+    var b = BN && BN[k]; if (!b || typeof b !== 'object') return;
+    var sel = '.arch[data-s="' + k + '"]', base = '', img = '';
+    var sh = b.shape === 'custom' ? { c: okClip(b.clip), r: okRad(b.radius) } : SHAPES[b.shape];
+    if (sh) { if (sh.c) base += 'clip-path:' + sh.c + ';border-radius:0;'; else if (sh.r) base += 'border-radius:' + sh.r + ';clip-path:none;'; if (sh.ar) base += 'aspect-ratio:' + sh.ar + ';'; }
+    if (/^#[0-9a-f]{3,8}$/i.test(b.bg || '')) base += 'background:' + b.bg + ';';
+    if (b.fit === 'contain' || b.fit === 'cover' || b.fit === 'fill') img += 'object-fit:' + b.fit + ';';
+    var px = nm(b.px), py = nm(b.py); if (px !== null || py !== null) img += 'object-position:' + cl2(px === null ? 50 : px, 0, 100) + '% ' + cl2(py === null ? 50 : py, 0, 100) + '%;';
+    var z = nm(b.zoom); if (z !== null && z !== 100) img += 'transform:scale(' + (cl2(z, 40, 300) / 100).toFixed(2) + ');';
+    if (base) css += sel + '{' + base + '}';
+    if (img) css += sel + ' img{' + img + '}';
+    [['d', '(min-width:901px)'], ['m', '(max-width:900px)']].forEach(function (x) {
+      var v = b[x[0]]; if (!v || typeof v !== 'object') return; var s = '';
+      if (v.hide) s = 'display:none;';
+      else {
+        var w = nm(v.w), ar = nm(v.ar), tx_ = nm(v.x) || 0, ty = nm(v.y) || 0, rot = nm(v.r) || 0;
+        if (w !== null) s += 'width:' + cl2(w, 10, 200).toFixed(1) + '%;max-width:none;';
+        if (ar !== null) s += 'aspect-ratio:' + cl2(ar, .3, 4).toFixed(3) + ';';
+        if (tx_ || ty || rot) s += 'transform:translate(' + cl2(tx_, -300, 300).toFixed(1) + '%,' + cl2(ty, -300, 300).toFixed(1) + '%)' + (rot ? ' rotate(' + cl2(rot, -180, 180) + 'deg)' : '') + ';z-index:2;';
+      }
+      if (s) css += '@media' + x[1] + '{' + sel + '{' + s + '}}';
+    });
+  });
+  return css;
+}
+
 function build(data, opt) {
   opt = opt || {};
   var S = data.settings || {}, seo = S.seo || {}, files = {}, assets = {};
@@ -115,7 +168,9 @@ function build(data, opt) {
   var cur = S.currency || 'TRY';
   var M = S.merchant || {};
   var pbrand = function (p) { return String(p.brand || M.brand || S.name || '').trim(); };
-  var avail = function (p) { return ({ in_stock: 1, out_of_stock: 1, preorder: 1, backorder: 1 })[p.availability] ? p.availability : (p.stock === false ? 'out_of_stock' : 'in_stock'); };
+  var AVSET = { in_stock: 1, out_of_stock: 1, preorder: 1, backorder: 1 };
+  var qtyOf = function (p) { var q = p.qty; if (q === '' || q == null) return null; q = Math.floor(Number(q)); return isFinite(q) && q >= 0 ? q : null; };
+  var avail = function (p) { var q = qtyOf(p), a = AVSET[p.availability] ? p.availability : ''; if (a === 'preorder' || a === 'backorder') return a; if (q !== null) return q > 0 ? 'in_stock' : 'out_of_stock'; return a || (p.stock === false ? 'out_of_stock' : 'in_stock'); };
   var SCHAV = { in_stock: 'InStock', out_of_stock: 'OutOfStock', preorder: 'PreOrder', backorder: 'BackOrder' }, SCHCOND = { 'new': 'NewCondition', refurbished: 'RefurbishedCondition', used: 'UsedCondition' };
   var clampN = function (v, a, b, d) { v = +v; return isFinite(v) && v > 0 ? Math.min(b, Math.max(a, v)) : d; };
   var BN = S.banners || {}, RAT = { portrait: '3/4', square: '1/1', landscape: '4/3', tall: '2/3' }, bcss = '';
@@ -125,7 +180,7 @@ function build(data, opt) {
   if (RAT[BN.edRatio]) bcss += '.ed .arch{aspect-ratio:' + RAT[BN.edRatio] + '}';
   if (RAT[BN.storyRatio]) bcss += '.st .arch{aspect-ratio:' + RAT[BN.storyRatio] + '}';
   if (+BN.tileH > 0) bcss += '@media(min-width:901px){.mo{grid-auto-rows:' + clampN(BN.tileH, 120, 500, 230) + 'px}}';
-  bcss += '.wb{margin:26px 0 0;border-radius:18px;overflow:hidden;background:var(--soft)}.wb a{display:block}.wb img{width:100%;height:var(--wh,320px);object-fit:cover;display:block}@media(max-width:800px){.wb img{height:var(--whm,180px)}}';
+  bcss += bannerCss(BN) + EXTRA_CSS; bcss += '.wb{margin:26px 0 0;border-radius:18px;overflow:hidden;background:var(--soft)}.wb a{display:block}.wb img{width:100%;height:var(--wh,320px);object-fit:cover;display:block}@media(max-width:800px){.wb img{height:var(--whm,180px)}}';
   var xe = function (s) { return String(s == null ? '' : s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]; }); };
   var langs = (S.langs || ['tr']).filter(function (l) { return L[l]; });
   if (langs.indexOf('tr') < 0) langs.unshift('tr');
@@ -209,7 +264,7 @@ function build(data, opt) {
   function page(o) {
     if (o.raw != null) return emit(o.raw, o);
     var l = o.l, ui = U[l], alts = o.alts || {}, url = base + o.path, desc = clip(plain(o.desc || ''), 158);
-    var wa = S.whatsapp ? 'https://wa.me/' + esc(S.whatsapp) : '';
+    var wa = S.whatsapp ? 'https://wa.me/' + esc(waDigits(S.whatsapp)) : '';
     var h = '<!doctype html><html lang="' + l + '" dir="' + L[l].dir + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
     h += '<title>' + esc(o.title) + '</title><meta name="description" content="' + esc(desc) + '">';
     if (seo.keywords && o.home) h += '<meta name="keywords" content="' + esc(seo.keywords) + '">';
@@ -254,19 +309,32 @@ function build(data, opt) {
     var pick = function (k, fb) {
       var b = B[k] || {};
       if (typeof b.img === 'string' && b.img) return { src: b.img, alt: tx(b.alt, l) || S.name };
-      if (b.code) { var q = lp.filter(function (x) { return x.code && x.code === String(b.code).trim() && x.images[0]; })[0]; if (q) return { src: q.images[0], alt: tx(q.name, l) }; }
+      if (b.code) { var q = lp.filter(function (x) { return x.code && x.code === String(b.code).trim() && x.images[0]; })[0]; if (q) return { src: q.images[0], alt: tx(q.name, l), prod: q }; }
       return fb || null;
     };
     var h1 = pick('hero1', hi[0]), h2 = pick('hero2', hi[1]);
     var wb = B.wide || {}, wsrc = typeof wb.img === 'string' ? wb.img : '', wlink = wb.link && typeof wb.link === 'object' ? tx(wb.link, l) : '';
     if (!/^(https?:\/\/|\/|#)/.test(wlink)) wlink = '';
     var wide = wsrc ? '<div class="wb" style="--wh:' + clampN(wb.h, 80, 900, 320) + 'px;--whm:' + clampN(wb.hm, 60, 600, 180) + 'px">' + (wlink ? '<a href="' + esc(wlink) + '">' : '') + '<img src="' + esc(wsrc) + '" alt="' + esc(tx(wb.alt, l) || S.name) + '" loading="lazy">' + (wlink ? '</a>' : '') + '</div>' : '';
-    var wa = S.whatsapp ? 'https://wa.me/' + esc(S.whatsapp) : '';
+    var wa = S.whatsapp ? 'https://wa.me/' + esc(waDigits(S.whatsapp)) : '';
     var prices = lp.map(function (p) { return sale(p) ? p.sale : p.price; }).filter(function (x) { return x > 0; }), minP = prices.length ? Math.min.apply(null, prices) : 0;
     var cl = catList.filter(function (c) { return cname(c, l) && c.items.some(function (p) { return has(p, l); }); });
     var chips = function (c, cur) { var vs = vsubs(c, l); return vs.length ? '<div class="chips">' + (cur ? '<a href="' + curl(c, l) + '">' + esc(cname(c, l)) + '</a>' : '') + vs.map(function (sc) { return '<a' + (sc === cur ? ' class="on"' : '') + ' href="' + surl(sc, l) + '">' + esc(sname(sc, l)) + '<small>' + sc.items.filter(function (p) { return has(p, l); }).length + '</small></a>'; }).join('') + '</div>' : ''; };
-    var ar = function (p, c) { return '<div class="arch ' + c + '"><img src="' + esc(p.src || p.images[0]) + '" alt="' + esc(p.src ? p.alt : tx(p.name, l)) + '" width="600" height="800"' + (c === 'a1' ? ' fetchpriority="high"' : '') + '></div>'; };
-    var hero = '<section class="hero"><div><div class="eyebrow">' + esc(tx(S.eyebrow, l) || S.name) + '</div><h1>' + esc(ttl1).replace(/\*(.+?)\*/g, '<em>$1</em>') + '</h1>' + (sub ? '<p class="lead">' + esc(sub) + '</p>' : '') + '<div class="cta"><a class="btn" href="' + pre(l) + '/urunler/">' + ui.hero1 + '</a>' + (wa ? '<a class="btn o" rel="nofollow noopener" href="' + wa + '">' + ui.hero2 + '</a>' : '') + '</div></div><div class="hc">' + (h1 ? ar(h1, 'a1') : '') + (h2 ? ar(h2, 'a2') : '') + (minP ? '<div class="bdg"><small>' + ui.from + '</small><br><b class="sf" style="font-size:26px">' + money(minP, l) + '</b></div>' : '') + '</div></section>';
+    var slotHref = function (slot, p) {
+      var b = B[slot] || {}, t = b.lt || '', v = String(b.lv == null ? '' : b.lv).trim();
+      if (t === 'none') return '';
+      if (t === 'product') { var q = lp.filter(function (x) { return (x.code && x.code === v) || x.slug === v; })[0]; return q ? purl(q, l) : ''; }
+      if (t === 'cat') { var pr = v.split('>').map(function (x) { return x.trim(); }), cc = cl.filter(function (x) { return x.name === pr[0]; })[0]; if (!cc) return ''; var ss = pr[1] && cc.subMap && cc.subMap[pr[1]]; return ss && ss.parent ? surl(ss, l) : curl(cc, l); }
+      if (t === 'url') return /^(https?:\/\/|\/|#|tel:|mailto:)/.test(v) ? v : '';
+      if (t === 'wa') return wa ? wa + '?text=' + encodeURIComponent(v || ui.wa) : '';
+      var pp = p && (p.slug ? p : p.prod); return pp ? purl(pp, l) : '';
+    };
+    var ar = function (p, c, slot) {
+      var bs = B[slot] || {}, href = slotHref(slot, p), alt = p.src ? p.alt : tx(p.name, l), bd = typeof bs.badge === 'string' ? bs.badge.trim() : '';
+      var im = '<img src="' + esc(p.src || p.images[0]) + '" alt="' + esc(alt) + '" width="600" height="800"' + (c === 'a1' ? ' fetchpriority="high"' : '') + '>';
+      return '<div class="arch ' + c + '"' + (slot ? ' data-s="' + slot + '"' : '') + '>' + (href ? '<a href="' + esc(href) + '"' + (/^https?:/.test(href) ? ' rel="noopener"' : '') + ' aria-label="' + esc(alt) + '">' + im + '</a>' : im) + (bd ? '<span class="bgx">' + esc(bd) + '</span>' : '') + '</div>';
+    };
+    var hero = '<section class="hero"><div><div class="eyebrow">' + esc(tx(S.eyebrow, l) || S.name) + '</div><h1>' + esc(ttl1).replace(/\*(.+?)\*/g, '<em>$1</em>') + '</h1>' + (sub ? '<p class="lead">' + esc(sub) + '</p>' : '') + '<div class="cta"><a class="btn" href="' + pre(l) + '/urunler/">' + ui.hero1 + '</a>' + (wa ? '<a class="btn o" rel="nofollow noopener" href="' + wa + '">' + ui.hero2 + '</a>' : '') + '</div></div><div class="hc">' + (h1 ? ar(h1, 'a1', 'hero1') : '') + (h2 ? ar(h2, 'a2', 'hero2') : '') + (minP ? '<div class="bdg"><small>' + ui.from + '</small><br><b class="sf" style="font-size:26px">' + money(minP, l) + '</b></div>' : '') + '</div></section>';
     var words = cl.map(function (c) { return cname(c, l); }); if (!words.length) words = [S.name];
     var strip = ''; for (var r = 0; r < Math.max(1, Math.ceil(8 / words.length)); r++) words.forEach(function (w) { strip += '<span>' + esc(w) + '<i>✦</i></span>'; });
     var mq = '<div class="mq" aria-hidden="true"><div>' + strip + strip + '</div></div>';
@@ -276,11 +344,11 @@ function build(data, opt) {
     if (allSubs.length) rest += '<div class="chips rv" style="margin-top:22px">' + allSubs.slice(0, 18).map(function (sc) { return '<a href="' + surl(sc, l) + '">' + esc(sname(sc, l)) + '<small>' + esc(cname(sc.parent, l)) + '</small></a>'; }).join('') + '</div>';
     rest += '<div class="sh rv"><h2>' + ui.newin + '</h2><a href="' + pre(l) + '/urunler/">' + ui.all + ' →</a></div><div class="grid">' + lp.slice(0, 8).map(function (p) { return card(p, l); }).join('') + '</div>';
     var fc = cats[S.featuredCat] && cname(cats[S.featuredCat], l) ? cats[S.featuredCat] : (cl[1] || cl[0]);
-    if (fc) { var fi = fc.items.filter(function (p) { return has(p, l) && p.images[0]; }); if (fi.length) rest += '<section class="ed rv"><div><div class="eyebrow">' + ui.col + '</div><h2>' + esc(cname(fc, l)) + '</h2><p>' + esc(tx(nmap(data.catDesc, fc.name), l) || ui.hero1) + '</p><div class="cta"><a class="btn" href="' + curl(fc, l) + '">' + ui.explore + '</a></div></div><div class="imgs">' + ar(pick('ed1', fi[0]), '') + ar(pick('ed2', fi[1] || fi[0]), '') + '</div></section>'; }
+    if (fc) { var fi = fc.items.filter(function (p) { return has(p, l) && p.images[0]; }); if (fi.length) rest += '<section class="ed rv"><div><div class="eyebrow">' + ui.col + '</div><h2>' + esc(cname(fc, l)) + '</h2><p>' + esc(tx(nmap(data.catDesc, fc.name), l) || ui.hero1) + '</p><div class="cta"><a class="btn" href="' + curl(fc, l) + '">' + ui.explore + '</a></div></div><div class="imgs">' + ar(pick('ed1', fi[0]), '', 'ed1') + ar(pick('ed2', fi[1] || fi[0]), '', 'ed2') + '</div></section>'; }
     var ic = ['<path d="M3 7h11v9H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="18" r="1.8"/><circle cx="17" cy="18" r="1.8"/>', '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>', '<rect x="3" y="9" width="18" height="12" rx="1"/><path d="M12 9v12M3 13h18M12 9c-3 0-4-4-1.5-4S12 9 12 9zm0 0c3 0 4-4 1.5-4S12 9 12 9z"/>', '<path d="M4 5h16v11H9l-5 4z"/>'];
     rest += '<div class="vs" style="margin-top:70px">' + [ui.v1, ui.v2, ui.v3, ui.v4].map(function (v, i) { return '<div class="v rv"><svg viewBox="0 0 24 24" aria-hidden="true">' + ic[i] + '</svg><h3>' + v[0] + '</h3><p>' + v[1] + '</p></div>'; }).join('') + '</div>';
     var sp = pick('story', hi[2] || hi[0]), ab = tx(S.about, l) || ui.storyD.replace('{store}', S.name);
-    rest += '<section class="st rv">' + (sp ? ar(sp, '') : '<div></div>') + '<div><div class="eyebrow">' + ui.story + '</div><h2>' + esc(S.name) + '</h2><p>' + esc(ab) + '</p></div></section>';
+    rest += '<section class="st rv">' + (sp ? ar(sp, '', 'story') : '<div></div>') + '<div><div class="eyebrow">' + ui.story + '</div><h2>' + esc(S.name) + '</h2><p>' + esc(ab) + '</p></div></section>';
     rest += '<section class="cb rv"><h2>' + ui.ctaT + '</h2><p>' + ui.ctaD + '</p>' + (wa ? '<a class="btn" rel="nofollow noopener" href="' + wa + '">' + ui.hero2 + '</a>' : '') + '</section>';
     var sameAs = String(seo.sameAs || '').split(/[\s,]+/).filter(Boolean); if (S.instagram) sameAs.push(S.instagram);
     var org = { '@context': 'https://schema.org', '@type': 'Organization', name: S.name, url: base + '/', logo: logo ? abs(logo) : undefined, sameAs: sameAs.length ? sameAs : undefined };
@@ -311,14 +379,17 @@ function build(data, opt) {
 
     lp.forEach(function (p) {
       var n = tx(p.name, l), d = tx(p.desc, l), ps = p.seo || {}, price = sale(p) ? p.sale : p.price, c = cats[top(p)], cn = c && cname(c, l), sc = cn && subOf(p) && c.subMap[subOf(p)], sn = sc && sname(sc, l);
-      var t = tx(ps.title, l) || ttl(n), md = tx(ps.desc, l) || plain(d) || n;
+      var t = tx(ps.title, l) || ttl(n), md = tx(ps.desc, l) || clip(plain(d), 158) || (n + (cn ? ' \u2014 ' + cn : '') + ' \u2014 ' + (S.name || ''));
       var url = base + purl(p, l);
       var ld = [{ '@context': 'https://schema.org', '@type': 'Product', name: n, description: plain(d) || n, sku: p.code || undefined, image: p.images.map(abs), brand: { '@type': 'Brand', name: pbrand(p) }, gtin: p.gtin || undefined, mpn: p.mpn || undefined, color: p.color || undefined, material: p.material || undefined, category: cn || undefined, offers: { '@type': 'Offer', url: url, priceCurrency: cur, price: Number(price).toFixed(2), availability: 'https://schema.org/' + SCHAV[avail(p)], itemCondition: 'https://schema.org/' + (SCHCOND[p.condition || M.condition] || 'NewCondition') } },
         { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: ui.home, item: base + pre(l) + '/' }].concat(cn ? [{ '@type': 'ListItem', position: 2, name: cn, item: base + curl(c, l) }] : []).concat(sn ? [{ '@type': 'ListItem', position: 3, name: sn, item: base + surl(sc, l) }] : []).concat([{ '@type': 'ListItem', position: 2 + (cn ? 1 : 0) + (sn ? 1 : 0), name: n }]) }];
       var rel = P.filter(function (q) { return q !== p && top(q) === top(p) && has(q, l); }).sort(function (a, b) { return (subOf(b) === subOf(p)) - (subOf(a) === subOf(p)); }).slice(0, 4);
-      var msg = encodeURIComponent(ui.wa + ' ' + n + (p.code ? ' (' + p.code + ')' : '') + ' ' + url);
-      var disc = sale(p) ? Math.round(100 - p.sale / p.price * 100) : 0, wab = S.whatsapp ? 'https://wa.me/' + esc(S.whatsapp) + '?text=' + msg : '';
-      var body = '<nav class="crumb"><a href="' + pre(l) + '/">' + ui.home + '</a>' + (cn ? ' › <a href="' + curl(c, l) + '">' + esc(cn) + '</a>' : '') + (sn ? ' › <a href="' + surl(sc, l) + '">' + esc(sn) + '</a>' : '') + ' › ' + esc(n) + '</nav><article class="pd"><div class="gal"><div class="big">' + (p.images[0] ? '<img id="big" src="' + esc(p.images[0]) + '" alt="' + esc(tx(ps.alt, l) || n) + '" width="900" height="900" fetchpriority="high">' : '') + '</div>' + (p.images.length > 1 ? '<div class="th">' + p.images.map(function (u, i) { return '<img src="' + esc(u) + '" data-big="' + esc(u) + '" alt="' + esc(n) + ' ' + (i + 1) + '" width="72" height="72" loading="lazy">'; }).join('') + '</div>' : '') + '</div><div><div class="eyebrow">' + esc(cn || '') + '</div><h1>' + esc(n) + '</h1><div class="price">' + (sale(p) ? '<span class="old">' + money(p.price, l) + '</span>' : '') + money(price, l) + (disc ? '<span class="bg">-%' + disc + '</span>' : '') + '</div><ul class="f">' + bullets(d).map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul><div class="cta">' + (wab ? '<a class="btn" rel="nofollow noopener" href="' + wab + '">' + ui.ord + '</a>' : '') + '<a class="btn o" href="' + pre(l) + '/urunler/">' + ui.all + '</a></div><div class="tr"><span>' + ui.v1[0] + '</span><span>' + ui.v2[0] + '</span><span>' + ui.v3[0] + '</span></div><details open><summary>' + ui.spec + '</summary><p>' + (p.code ? ui.code + ': ' + esc(p.code) + '<br>' : '') + (cn ? ui.cat + ': ' + esc(cn) + (sn ? ' › ' + esc(sn) : '') : '') + '</p></details><details><summary>' + ui.ship + '</summary><p>' + ui.shipT + '</p></details></div></article>' + (rel.length ? '<div class="sh"><h2>' + ui.rel + '</h2></div><div class="grid">' + rel.map(function (q) { return card(q, l); }).join('') + '</div>' : '');
+      var wtpl = tx(S.waTpl, l) || WAT[l] || WAT.tr, fill = function (s, k, v) { return s.split(k).join(v); };
+      var msg = encodeURIComponent(fill(fill(fill(fill(wtpl, ' ({kod})', p.code ? ' ({kod})' : ''), '{kod}', p.code || ''), '{urun}', n), '{link}', url));
+      var disc = sale(p) ? Math.round(100 - p.sale / p.price * 100) : 0, wab = S.whatsapp ? 'https://wa.me/' + esc(waDigits(S.whatsapp)) + '?text=' + msg.split('%7Badet%7D').join('1') : '', waBase = S.whatsapp ? 'https://wa.me/' + esc(waDigits(S.whatsapp)) + '?text=' + msg : '';
+      var oos = avail(p) === 'out_of_stock', qn = qtyOf(p), qmax = qn !== null && qn > 0 ? qn : 99;
+      var qtyUi = (!oos && wab) ? '<div class="qty"><span>' + (QTYL[l] || QTYL.tr) + '</span><button type="button" data-q="-1" aria-label="-">\u2212</button><input type="number" id="qn" value="1" min="1" max="' + qmax + '" inputmode="numeric" aria-label="' + (QTYL[l] || QTYL.tr) + '"><button type="button" data-q="1" aria-label="+">+</button></div>' + (qn !== null && qn > 0 && qn <= 5 ? '<div class="low">' + (LOWL[l] || LOWL.tr).replace('{n}', qn) + '</div>' : '') : '';
+      var body = '<nav class="crumb"><a href="' + pre(l) + '/">' + ui.home + '</a>' + (cn ? ' › <a href="' + curl(c, l) + '">' + esc(cn) + '</a>' : '') + (sn ? ' › <a href="' + surl(sc, l) + '">' + esc(sn) + '</a>' : '') + ' › ' + esc(n) + '</nav><article class="pd"><div class="gal"><div class="big">' + (p.images[0] ? '<img id="big" src="' + esc(p.images[0]) + '" alt="' + esc(tx(ps.alt, l) || n) + '" width="900" height="900" fetchpriority="high">' : '') + '</div>' + (p.images.length > 1 ? '<div class="th">' + p.images.map(function (u, i) { return '<img src="' + esc(u) + '" data-big="' + esc(u) + '" alt="' + esc(n) + ' ' + (i + 1) + '" width="72" height="72" loading="lazy">'; }).join('') + '</div>' : '') + '</div><div><div class="eyebrow">' + esc(cn || '') + '</div><h1>' + esc(n) + '</h1><div class="price">' + (sale(p) ? '<span class="old">' + money(p.price, l) + '</span>' : '') + money(price, l) + (disc ? '<span class="bg">-%' + disc + '</span>' : '') + '</div><ul class="f">' + bullets(d).map(function (b) { return '<li>' + esc(b) + '</li>'; }).join('') + '</ul>' + qtyUi + '<div class="cta">' + (oos ? '<span class="btn dis">' + (OOSL[l] || OOSL.tr) + '</span>' : wab ? '<a class="btn" id="wab" rel="nofollow noopener" data-wa="' + waBase + '" href="' + wab + '">' + ui.ord + '</a>' : '') + '<a class="btn o" href="' + pre(l) + '/urunler/">' + ui.all + '</a></div><div class="tr"><span>' + ui.v1[0] + '</span><span>' + ui.v2[0] + '</span><span>' + ui.v3[0] + '</span></div><details open><summary>' + ui.spec + '</summary><p>' + (p.code ? ui.code + ': ' + esc(p.code) + '<br>' : '') + (cn ? ui.cat + ': ' + esc(cn) + (sn ? ' › ' + esc(sn) : '') : '') + '</p></details><details><summary>' + ui.ship + '</summary><p>' + ui.shipT + '</p></details></div></article>' + (rel.length ? '<div class="sh"><h2>' + ui.rel + '</h2></div><div class="grid">' + rel.map(function (q) { return card(q, l); }).join('') + '</div>' : '');
             page({ l: l, path: purl(p, l), type: 'product', title: t, desc: md, img: p.images[0], ld: ld, body: body, sitemapImg: p.images[0], alts: allAlts(function (k) { return has(p, k) ? purl(p, k) : ''; }) });
       if (!tx(ps.desc, l) && !d) report.warnings.push(p.slug + ' [' + l + ']: açıklama yok');
       if (!p.images.length) report.warnings.push(p.slug + ': görsel yok');
@@ -368,7 +439,9 @@ function build(data, opt) {
   langs.forEach(function (l) {
     var out = [], skip = 0, ship = String(M.shipPrice == null ? '' : M.shipPrice).trim().replace(',', '.');
     P.forEach(function (p) {
-      if (!has(p, l) || p.nofeed === '1') return;
+      if (!has(p, l)) return;
+      var xs = p.xml || (p.nofeed === '1' ? 'out' : '');
+      if (xs === 'out' || (M.mode === 'selected' && xs !== 'in')) return;
       var ps = p.seo || {}, n = tx(ps.mtitle, l) || tx(p.name, l), d = plain(tx(p.desc, l)) || n, price = Number(p.price) || 0;
       var imgs = (p.images || []).filter(Boolean).map(abs);
       if (!(price > 0) || !imgs.length || !n) { skip++; if (l === 'tr') report.warnings.push('Feed dışı: ' + (p.code || p.slug) + (price > 0 ? '' : ' (fiyat yok)') + (imgs.length ? '' : ' (görsel yok)')); return; }
@@ -376,7 +449,7 @@ function build(data, opt) {
       var pt = cn ? cn + (sn ? ' > ' + sn : '') : '', gc = p.gcat || M.gcat || '', x = [];
       x.push('<g:id>' + xe(p.code || p.slug) + '</g:id>', '<title>' + xe(n.slice(0, 150)) + '</title>', '<description>' + xe(d.slice(0, 5000)) + '</description>', '<link>' + xe(base + purl(p, l)) + '</link>', '<g:image_link>' + xe(imgs[0]) + '</g:image_link>');
       imgs.slice(1, 11).forEach(function (u) { x.push('<g:additional_image_link>' + xe(u) + '</g:additional_image_link>'); });
-      x.push('<g:availability>' + avail(p) + '</g:availability>', '<g:price>' + price.toFixed(2) + ' ' + xe(cur) + '</g:price>');
+      if (qtyOf(p) !== null) x.push('<g:sell_on_google_quantity>' + qtyOf(p) + '</g:sell_on_google_quantity>'); x.push('<g:availability>' + avail(p) + '</g:availability>', '<g:price>' + price.toFixed(2) + ' ' + xe(cur) + '</g:price>');
       if (sale(p)) x.push('<g:sale_price>' + Number(p.sale).toFixed(2) + ' ' + xe(cur) + '</g:sale_price>');
       x.push('<g:condition>' + (SCHCOND[p.condition || M.condition] ? (p.condition || M.condition) : 'new') + '</g:condition>');
       if (pbrand(p)) x.push('<g:brand>' + xe(pbrand(p)) + '</g:brand>');
@@ -396,10 +469,10 @@ function build(data, opt) {
     files[(l === 'tr' ? '' : l + '/') + 'google-merchant.xml'] = '<?xml version="1.0" encoding="UTF-8"?>\n<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0"><channel><title>' + xe(S.name) + '</title><link>' + xe(base + pre(l) + '/') + '</link><description>' + xe(S.name) + ' — Google Merchant Center</description>\n' + out.join('\n') + '\n</channel></rss>\n';
     report.feed[l] = { items: out.length, skipped: skip };
   });
-  files['app.js'] = JS;
+  files['app.js'] = JS + QJS;
   report.sitemapUrls = sitemap.length;
   return { files: files, report: report };
 }
-root.AurelyaBuild = { build: build, slugify: slugify, LANGS: L, reserved: CP_RESERVED };
+root.AurelyaBuild = { build: build, slugify: slugify, LANGS: L, reserved: CP_RESERVED, bannerCss: bannerCss, shapes: Object.keys(SHAPES), shapeDefs: SHAPES, slots: SLOTS };
 if (typeof module !== 'undefined') module.exports = root.AurelyaBuild;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -34,3 +34,23 @@ main{max-width:1040px;margin:0 auto;padding:20px}
 
 textarea.code{font:12.5px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-height:120px;white-space:pre;overflow:auto;tab-size:2}
 .bd{display:inline-block;font-size:11px;line-height:1.5;padding:0 7px;border-radius:99px;border:1px solid var(--line);color:var(--mut);margin-left:6px;vertical-align:middle}
+.badge.bad{border-color:var(--bad);color:var(--bad)}.badge.warn{border-color:var(--warn);color:var(--warn)}
+.bulk{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:10px}.bulk .row>input{width:100%}
+
+/* Banner Stüdyosu */
+body.stwide main{max-width:1600px}
+.stu{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;align-items:start}
+.stp{max-height:calc(100vh - 90px);overflow:auto;padding-right:4px}
+.stv{position:sticky;top:64px}
+.stdev{margin-bottom:10px;align-items:center}
+#stwrap{background:#e9e4da;border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative}
+#stwrap.mob{border-radius:28px;border:8px solid #2a2420;box-shadow:0 10px 30px rgba(0,0,0,.25);margin:0 auto}
+#stf{border:0;background:#fff;display:block}
+.stR{margin:8px 0}.stR label{display:flex;justify-content:space-between;text-transform:none;font-size:12.5px}.stR input[type=range]{width:100%;padding:0}
+.shg{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:6px}
+.stsh{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 2px;font-size:11px}
+.stsh i{display:block;width:34px;height:34px;background:var(--ac,#b08d57)}
+.stsh small{font-size:10.5px;line-height:1.1;text-align:center}
+.stsh.on{border-color:var(--ac,#b08d57);box-shadow:0 0 0 2px var(--ac,#b08d57) inset}
+@media(max-width:1100px){.stu{grid-template-columns:1fr}.stv{position:static;order:-1}.stp{max-height:none}}
+.stp .r{flex-wrap:wrap}.stp .r input[type=file]{max-width:100%}

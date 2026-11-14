@@ -3,13 +3,13 @@
 var CFG = window.AURELYA_CONFIG || {}, sb = null, LG = AurelyaBuild.LANGS;
 var $ = function (s) { return document.querySelector(s); };
 var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
-var D = null, view = 'urun', sub = 'brand', ei = -1, cpi = -1, el = 'tr', sheet = null, q = '', cf = '', remoteOk = false, me = '', sel = new Set(), vis = [], csel = new Set();
+var D = null, view = 'urun', sub = 'brand', ei = -1, cpi = -1, pf = '', el = 'tr', sheet = null, q = '', cf = '', remoteOk = false, me = '', sel = new Set(), vis = [], csel = new Set();
 D = JSON.parse(JSON.stringify(window.SITE_DATA || { settings: { name: 'Mağazam', langs: ['tr'], seo: {} }, products: [], catNames: {} }));
-function norm() { D.settings = D.settings || {}; D.settings.custom = D.settings.custom || {}; D.settings.cpages = D.settings.cpages || []; D.settings.seo = D.settings.seo || {}; D.products = D.products || []; D.catNames = D.catNames || {}; D.catDesc = D.catDesc || {}; D.catSeo = D.catSeo || {}; D.catImg = D.catImg || {}; }
+function norm() { D.settings = D.settings || {}; D.settings.custom = D.settings.custom || {}; D.settings.cpages = D.settings.cpages || []; D.settings.seo = D.settings.seo || {}; D.products = D.products || []; D.catNames = D.catNames || {}; D.catDesc = D.catDesc || {}; D.catSeo = D.catSeo || {}; D.catImg = D.catImg || {}; D.products.forEach(function (p) { if (p.nofeed === '1') { if (!p.xml) p.xml = 'out'; delete p.nofeed; } }); }
 norm();
 var langs = function () { var l = (D.settings.langs || ['tr']).filter(function (x) { return LG[x]; }); if (l.indexOf('tr') < 0) l.unshift('tr'); return l; };
 var NAV = [['urun', 'Ürünler'], ['kat', 'Kategoriler'], ['xl', 'Excel ile ürün ekle'], ['set', 'Site Ayarları'], ['pub', 'Yayınla'], ['acc', 'Hesap']];
-var SUB = [['brand', 'Logo ve Marka'], ['contact', 'İletişim'], ['legal', 'Yasal Bilgiler'], ['home', 'Ana sayfa'], ['banner', 'Bannerlar ve Görseller'], ['about', 'Hakkımızda'], ['custom', 'Özel Kod'], ['cpages', 'Özel Sayfalar'], ['langs', 'Diller ve Çeviri'], ['merchant', 'Google Merchant'], ['seo', 'SEO']];
+var SUB = [['brand', 'Logo ve Marka'], ['contact', 'İletişim'], ['legal', 'Yasal Bilgiler'], ['home', 'Ana sayfa'], ['banner', 'Bannerlar ve Görseller'], ['studio', 'Banner Stüdyosu'], ['about', 'Hakkımızda'], ['custom', 'Özel Kod'], ['cpages', 'Özel Sayfalar'], ['langs', 'Diller ve Çeviri'], ['merchant', 'Google Merchant'], ['seo', 'SEO'], ['depo', 'Depo ve Veritabanı']];
 
 /* ---------- kaydetme ---------- */
 var tm;
@@ -103,7 +103,7 @@ function upImg(file, cb, max) {
   });
 }
 function dl(name, blob) { var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
-function log(m) { var l = $('#lg'); if (!l) return; l.hidden = false; l.textContent += m + '\n'; l.scrollTop = 1e9; }
+function log(m, id) { var l = $(id || '#lg'); if (!l) return; l.hidden = false; l.textContent += m + '\n'; l.scrollTop = 1e9; }
 var sleep = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
 
 /* ---------- görünümler ---------- */
@@ -120,33 +120,120 @@ function render() {
   else if (view === 'pub') h = publishView();
   else h = account();
   $('#v').innerHTML = h;
+  if (window.Studio) Studio.after(view === 'set' ? sub : '');
   if (view === 'urun' && ei < 0) fillList();
   if (view === 'pub') audit();
   $('#side').classList.remove('open');
 }
 
+/* ---------- Merchant/XML durumu, toplu düzenleme ---------- */
+function xmlState(p) {
+  var x = p.xml || (p.nofeed === '1' ? 'out' : ''), mode = (D.settings.merchant || {}).mode;
+  return x === 'out' ? 'out' : (x === 'in' || mode !== 'selected') ? 'in' : 'out';
+}
+function feedIssues(p) {
+  var M = D.settings.merchant || {}, b = [], s = [];
+  if (!((p.price || 0) > 0)) b.push('fiyat');
+  if (!(p.images || []).length) b.push('görsel');
+  if (!(p.name || {}).tr) b.push('ad');
+  if (!p.brand && !M.brand) s.push('marka');
+  if (!p.gtin && !p.mpn) s.push('GTIN/MPN');
+  if (!p.gcat && !M.gcat) s.push('Google kategori');
+  if (!(p.desc || {}).tr) s.push('açıklama');
+  return { block: b, soft: s };
+}
+function seoOk(p) { var s = p.seo || {}; return !!((s.title || {}).tr && (s.desc || {}).tr); }
+var PF = [['', 'Tüm ürünler'], ['xml', 'XML’de olanlar'], ['noxml', 'XML kapsamı dışındakiler'], ['blocked', 'Fiyat/görsel eksik (XML’e giremez)'], ['incomplete', 'Merchant alanı eksik (GTIN/MPN, marka, kategori)'], ['noseo', 'SEO başlığı/açıklaması girilmemiş (TR)']];
+function pfMatch(p) {
+  var f = feedIssues(p);
+  if (pf === 'xml') return xmlState(p) === 'in' && !f.block.length;
+  if (pf === 'noxml') return xmlState(p) === 'out';
+  if (pf === 'blocked') return f.block.length > 0;
+  if (pf === 'incomplete') return f.soft.length > 0;
+  if (pf === 'noseo') return !seoOk(p);
+  return true;
+}
+function pbadges(p) {
+  var f = feedIssues(p), st = xmlState(p), ok = st === 'in' && !f.block.length;
+  var h = '<span class="badge' + (ok ? ' on' : '') + '">XML' + (st === 'in' ? '' : ' dışı') + '</span>';
+  if (f.block.length) h += '<span class="badge bad" title="XML’e girmez">' + esc(f.block.join(', ')) + ' yok</span>';
+  else if (f.soft.length) h += '<span class="badge warn" title="' + esc(f.soft.join(', ')) + ' eksik">' + f.soft.length + ' eksik</span>';
+  if (!seoOk(p)) h += '<span class="badge">SEO yok</span>';
+  return h;
+}
+var BF = [['brand', 'Marka', 't'], ['gcat', 'Google ürün kategorisi', 't'], ['cat', 'Kategori (Ana > Alt)', 'cat'], ['condition', 'Durum', 'cond'], ['availability', 'Stok durumu', 'avail'], ['qty', 'Stok adedi', 't'], ['label0', 'Özel etiket 0', 't'], ['label1', 'Özel etiket 1', 't'], ['label2', 'Özel etiket 2', 't'], ['label3', 'Özel etiket 3', 't'], ['label4', 'Özel etiket 4', 't'], ['group', 'Varyant grup kodu', 't'], ['color', 'Renk', 't'], ['material', 'Malzeme', 't'], ['size', 'Beden / ölçü', 't']];
+var COND = [['new', 'Yeni'], ['refurbished', 'Yenilenmiş'], ['used', 'İkinci el']];
+var AVAIL = [['in_stock', 'Stokta'], ['out_of_stock', 'Stokta yok'], ['preorder', 'Ön sipariş'], ['backorder', 'Tedarik bekleniyor']];
+function bulkVal() {
+  var f = $('#bf'); if (!f) return;
+  var def = BF.filter(function (x) { return x[0] === f.value; })[0] || BF[0], t = def[2], h;
+  if (t === 'cond' || t === 'avail') h = '<select id="bvv">' + (t === 'cond' ? COND : AVAIL).map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select>';
+  else h = '<input type="text" id="bvv" placeholder="Yeni değer (boş bırakırsanız alan temizlenir)"' + (t === 'cat' ? ' list="cl"' : '') + '>';
+  $('#bv').innerHTML = h;
+}
+function bulkX(k) {
+  var list = Array.from(sel); if (!list.length) return;
+  var say = function (m) { var e = $('#bm'); if (e) e.textContent = m; };
+  if (k === 'in' || k === 'out' || k === 'def') {
+    list.forEach(function (p) { p.xml = k === 'def' ? '' : k; delete p.nofeed; });
+    persist(); fillList();
+    say(list.length + ' ürün ' + (k === 'in' ? 'XML’e dahil edildi' : k === 'out' ? 'XML dışına alındı' : 'XML için varsayılana döndü') + '.');
+    return;
+  }
+  if (k === 'apply') {
+    var f = $('#bf').value, v = ($('#bvv').value || '').trim(), def = BF.filter(function (x) { return x[0] === f; })[0];
+    if (!v && !confirm(list.length + ' ürünün “' + def[1] + '” alanı boşaltılsın mı?')) return;
+    if (f === 'cat' && v) v = cparts(v).slice(0, 2).join(' > ');
+    list.forEach(function (p) { if (v) p[f] = v; else delete p[f]; });
+    persist(); fillList(); say(list.length + ' ürünün “' + def[1] + '” alanı güncellendi.');
+  }
+}
+function feedStatus() {
+  var M = D.settings.merchant || {}, st = { 'in': 0, out: 0, block: 0, soft: 0 }, per = {};
+  langs().forEach(function (l) { per[l] = 0; });
+  D.products.forEach(function (p) {
+    var f = feedIssues(p);
+    if (xmlState(p) === 'out') { st.out++; return; }
+    if (f.block.length) { st.block++; return; }
+    st['in']++; if (f.soft.length) st.soft++;
+    langs().forEach(function (l) { if (l === 'tr' || (p.name || {})[l]) per[l]++; });
+  });
+  return '<div class="c"><h3>XML durumu</h3><p>Toplam <b>' + D.products.length + '</b> ürün: <b class="ok">' + st['in'] + '</b> ürün XML’e giriyor, <b>' + st.out + '</b> kapsam dışı, <b class="bad">' + st.block + '</b> ürün fiyat/görsel eksik olduğu için giremiyor.' +
+    (st.soft ? ' Girenlerden <b class="warn">' + st.soft + '</b> ürünün Merchant alanı (GTIN/MPN, marka, kategori) eksik.' : '') + '</p>' +
+    '<p class="mut">Dillere göre ürün sayısı: ' + langs().map(function (l) { return '<b>' + LG[l].n + '</b> ' + per[l]; }).join(' · ') + (M.mode === 'selected' ? '<br>Kapsam: yalnızca “XML’e dahil” işaretlediğiniz ürünler.' : '') + '</p>' +
+    '<div class="row"><button class="sm" data-pfgo="xml">XML’deki ürünleri listele</button><button class="sm" data-pfgo="noxml">Kapsam dışındakileri listele</button><button class="sm" data-pfgo="blocked">Eksik fiyat/görselleri listele</button><button class="sm" data-pfgo="incomplete">Merchant alanı eksikleri listele</button></div>' +
+    '<p class="mut" style="margin-bottom:0">Ürün listesinde ürünleri seçip <b>XML’e dahil et / XML’den çıkar</b> ile toplu bağlayabilir, alanları toplu doldurabilirsiniz.</p></div>';
+}
+
 function productList() {
   var cats = catKeys();
-  return '<div class="c"><div class="row"><button class="pri" data-new="1">+ Yeni ürün</button><input type="search" id="pq" placeholder="Ürün adı veya koduyla ara…" value="' + esc(q) + '"><select id="pc"><option value="">Tüm kategoriler</option>' +
-    cats.map(function (c) { var sb = c.indexOf(' > ') > -1; return '<option value="' + esc(c) + '"' + (c === cf ? ' selected' : '') + '>' + (sb ? '\u00a0\u00a0\u21b3 ' + esc(c.split(' > ')[1]) : esc(c)) + '</option>'; }).join('') + '</select><span class="mut" id="pn"></span></div><div class="row" style="margin-top:10px"><label class="chk"><input type="checkbox" id="sa"> Tümünü seç</label><button class="dg sm" data-run="bulkdel" id="bd" hidden></button></div><div id="pl"></div></div>';
+  return '<datalist id="cl">' + cats.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist>' +
+    '<div class="c"><div class="row"><button class="pri" data-new="1">+ Yeni ürün</button><input type="search" id="pq" placeholder="Ürün adı veya koduyla ara…" value="' + esc(q) + '"><select id="pc"><option value="">Tüm kategoriler</option>' +
+    cats.map(function (c) { var sb = c.indexOf(' > ') > -1; return '<option value="' + esc(c) + '"' + (c === cf ? ' selected' : '') + '>' + (sb ? '\u00a0\u00a0\u21b3 ' + esc(c.split(' > ')[1]) : esc(c)) + '</option>'; }).join('') + '</select><span class="mut" id="pn"></span></div>' +
+    '<div class="row" style="margin-top:10px"><label class="chk"><input type="checkbox" id="sa"> Tümünü seç</label><select id="pf">' + PF.map(function (o) { return '<option value="' + o[0] + '"' + (o[0] === pf ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="bulk" id="bp" hidden><div class="row"><b id="bn"></b><button class="sm" data-bx="in">XML’e dahil et</button><button class="sm" data-bx="out">XML’den çıkar</button><button class="sm" data-bx="def">XML: varsayılan</button></div>' +
+    '<div class="row" style="margin-top:8px"><select id="bf" style="flex:0 0 200px">' + BF.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join('') + '</select><span id="bv" style="flex:1;min-width:200px"></span><button class="pri sm" data-bx="apply">Seçililere uygula</button><button class="dg sm" data-run="bulkdel" id="bd"></button></div><div class="mut" id="bm" style="margin-top:6px"></div></div>' +
+    '<div id="pl"></div></div>';
 }
 function fillList() {
   var t = q.trim().toLocaleLowerCase('tr'), n = 0, h = ''; vis = [];
   D.products.forEach(function (p, i) {
     if (cf) { var pa = cparts(p.cat); if (pa[0] !== cf && pa.slice(0, 2).join(' > ') !== cf) return; }
     if (t && (String((p.name || {}).tr || '') + ' ' + (p.code || '')).toLocaleLowerCase('tr').indexOf(t) < 0) return;
+    if (pf && !pfMatch(p)) return;
     vis.push(p); n++; if (n > 200) return;
-    h += '<div class="r"><input type="checkbox" data-sel="' + i + '"' + (sel.has(p) ? ' checked' : '') + ' style="width:auto"><img class="pv" src="' + esc((p.images || [])[0] || '') + '" alt=""><span><b>' + esc(p.code || '-') + '</b> ' + esc((p.name || {}).tr) + '<br><small class="mut">' + esc(p.cat || '') + ' · ' + (p.sale > 0 ? p.sale + ' (' + p.price + ')' : (p.price || 0)) + '</small></span><span style="flex:0 0 130px">' +
-      langs().map(function (l) { return '<span class="badge' + ((p.name || {})[l] ? ' on' : '') + '">' + l.toUpperCase() + '</span>'; }).join('') + '</span><button class="sm" data-edit="' + i + '">Düzenle</button></div>';
+    h += '<div class="r"><input type="checkbox" data-sel="' + i + '"' + (sel.has(p) ? ' checked' : '') + ' style="width:auto"><img class="pv" src="' + esc((p.images || [])[0] || '') + '" alt=""><span><b>' + esc(p.code || '-') + '</b> ' + esc((p.name || {}).tr) + '<br><small class="mut">' + esc(p.cat || '') + ' · ' + (p.sale > 0 ? p.sale + ' (' + p.price + ')' : (p.price || 0)) + '</small></span><span style="flex:0 0 200px">' +
+      langs().map(function (l) { return '<span class="badge' + ((p.name || {})[l] ? ' on' : '') + '">' + l.toUpperCase() + '</span>'; }).join('') + '<br>' + pbadges(p) + '</span><button class="sm" data-edit="' + i + '">Düzenle</button></div>';
   });
   $('#pl').innerHTML = h || '<p class="mut">Ürün bulunamadı.</p>'; $('#pn').textContent = n + ' / ' + D.products.length + ' ürün' + (n > 200 ? ' (ilk 200 gösteriliyor)' : '');
   selUi();
 }
 function selUi() {
-  var b = $('#bd'), a = $('#sa'); if (!b) return;
+  var b = $('#bd'), a = $('#sa'), bp = $('#bp'); if (!b) return;
   sel.forEach(function (p) { if (D.products.indexOf(p) < 0) sel.delete(p); });
-  b.hidden = !sel.size; b.textContent = 'Seçilenleri sil (' + sel.size + ')';
+  bp.hidden = !sel.size; b.textContent = 'Seçilenleri sil (' + sel.size + ')'; $('#bn').textContent = sel.size + ' ürün seçili';
   a.checked = vis.length > 0 && vis.every(function (p) { return sel.has(p); });
+  if (sel.size && !$('#bvv')) bulkVal();
 }
 /* Ürünleri siler; yalnızca bunlara ait yüklenmiş görselleri depodan da kaldırır (yer açılır). */
 async function removeProducts(list) {
@@ -168,10 +255,10 @@ function editor() {
     '<h3 style="margin-top:18px">Google Merchant ve ek SEO</h3><p class="mut">Boş bırakılanlar için Site Ayarları → Google Merchant’taki varsayılanlar kullanılır. Bu bilgiler hem Merchant XML’ine hem sayfadaki Google yapılandırılmış verisine (fiyat, stok, marka, GTIN) yazılır.</p><div class="g">' +
     inp(b + '.brand', 'Marka') + inp(b + '.gtin', 'GTIN / barkod (EAN, UPC)') + inp(b + '.mpn', 'MPN (üretici parça no)') +
     selx(b + '.condition', 'Durum', [['', 'Varsayılan (yeni)'], ['new', 'Yeni'], ['refurbished', 'Yenilenmiş'], ['used', 'İkinci el']]) +
-    selx(b + '.availability', 'Stok durumu', [['', 'Stokta'], ['in_stock', 'Stokta'], ['out_of_stock', 'Stokta yok'], ['preorder', 'Ön sipariş'], ['backorder', 'Tedarik bekleniyor']]) +
+    inp(b + '.qty', 'Stok adedi (boş = takip edilmez, 0 = stokta yok; Merchant’a gönderilir)', { t: 'number', ph: 'örn. 12' }) + selx(b + '.availability', 'Stok durumu', [['', 'Stokta'], ['in_stock', 'Stokta'], ['out_of_stock', 'Stokta yok'], ['preorder', 'Ön sipariş'], ['backorder', 'Tedarik bekleniyor']]) +
     inp(b + '.gcat', 'Google ürün kategorisi (örn. Home & Garden > Decor > Vases)') + inp(b + '.color', 'Renk') + inp(b + '.material', 'Malzeme') + inp(b + '.size', 'Beden / ölçü') +
-    inp(b + '.group', 'Varyant grup kodu (item_group_id)') + inp(b + '.label0', 'Özel etiket 0') + inp(b + '.label1', 'Özel etiket 1') +
-    selx(b + '.nofeed', 'Merchant XML’ine', [['', 'Dahil et'], ['1', 'Dahil etme']]) + '</div>' +
+    inp(b + '.group', 'Varyant grup kodu (item_group_id)') + inp(b + '.label0', 'Özel etiket 0') + inp(b + '.label1', 'Özel etiket 1') + inp(b + '.label2', 'Özel etiket 2') + inp(b + '.label3', 'Özel etiket 3') + inp(b + '.label4', 'Özel etiket 4') +
+    selx(b + '.xml', 'Merchant XML’i', [['', 'Varsayılan (Merchant sekmesindeki kapsama göre)'], ['in', 'XML’e dahil et'], ['out', 'XML’e dahil etme']]) + '</div>' +
     inp(b + '.seo.mtitle.' + el, 'Merchant başlığı (' + LG[el].n + ') — boşsa ürün adı; en çok 150 karakter', { cnt: 1 }) +
     inp(b + '.seo.alt.' + el, 'Ana görsel alt metni (' + LG[el].n + ') — boşsa ürün adı') +
     '<p><button class="pri" data-run="one">Bu ürünü diğer dillere çevir</button> <button class="dg" data-del="' + ei + '">Ürünü sil</button></p><div class="log" id="lg" hidden></div></div>';
@@ -212,6 +299,97 @@ async function importCats(rows) {
   if ($('#catatr') && $('#catatr').checked) { var L = langs().filter(function (l) { return l !== 'tr'; }); if (L.length) { log('Eksik diller çevriliyor…'); await transCats(L); } }
   render();
 }
+
+/* ---------- toplu SEO + Merchant alanları (Excel) ---------- */
+var CONDM = { 'yeni': 'new', 'new': 'new', 'yenilenmiş': 'refurbished', 'yenilenmis': 'refurbished', 'refurbished': 'refurbished', 'ikinci el': 'used', 'used': 'used' };
+var AVM = { 'stokta': 'in_stock', 'in stock': 'in_stock', 'in_stock': 'in_stock', 'stokta yok': 'out_of_stock', 'out of stock': 'out_of_stock', 'out_of_stock': 'out_of_stock', 'ön sipariş': 'preorder', 'on siparis': 'preorder', 'ön siparis': 'preorder', 'preorder': 'preorder', 'tedarik bekleniyor': 'backorder', 'backorder': 'backorder' };
+var XMLM = { 'dahil': 'in', 'evet': 'in', '1': 'in', 'in': 'in', 'dahil değil': 'out', 'dahil degil': 'out', 'hayır': 'out', 'hayir': 'out', '0': 'out', 'out': 'out', 'varsayılan': '', 'varsayilan': '' };
+var hn = function (s) { return String(s == null ? '' : s).toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim(); };
+function gtinOk(s) {
+  if (!/^\d+$/.test(s) || [8, 12, 13, 14].indexOf(s.length) < 0) return false;
+  var d = s.split('').map(Number), c = d.pop(), sum = 0; d.reverse().forEach(function (x, i) { sum += x * (i % 2 === 0 ? 3 : 1); });
+  return (10 - sum % 10) % 10 === c;
+}
+function sxDefs() {
+  var d = [{ h: 'Ürün kodu', code: 1 }, { h: 'Ürün adı (salt okunur)', ro: 1, get: function (p) { return (p.name || {}).tr || ''; } },
+    { h: 'Marka', f: 'brand' }, { h: 'GTIN (barkod)', f: 'gtin', t: 'gtin', a: ['gtin', 'barkod', 'ean'] }, { h: 'MPN', f: 'mpn' },
+    { h: 'Durum', f: 'condition', t: 'enum', m: CONDM, lab: { 'new': 'yeni', refurbished: 'yenilenmiş', used: 'ikinci el' } },
+    { h: 'Stok durumu', f: 'availability', t: 'enum', m: AVM, lab: { in_stock: 'stokta', out_of_stock: 'stokta yok', preorder: 'ön sipariş', backorder: 'tedarik bekleniyor' } },
+    { h: 'Stok adedi', f: 'qty', a: ['stok', 'adet', 'stok adedi', 'quantity', 'qty'] }, { h: 'Google ürün kategorisi', f: 'gcat' }, { h: 'Renk', f: 'color' }, { h: 'Malzeme', f: 'material' }, { h: 'Beden / ölçü', f: 'size' }, { h: 'Varyant grup kodu', f: 'group' }];
+  [0, 1, 2, 3, 4].forEach(function (i) { d.push({ h: 'Özel etiket ' + i, f: 'label' + i }); });
+  d.push({ h: 'Merchant XML', f: 'xml', t: 'xml', m: XMLM, lab: { 'in': 'dahil', out: 'dahil değil' } });
+  [['SEO başlığı', 'title', 70], ['SEO açıklaması', 'desc', 170], ['Merchant başlığı', 'mtitle', 150], ['Görsel alt metni', 'alt', 0]].forEach(function (g) {
+    langs().forEach(function (l) { d.push({ h: g[0] + ' ' + l.toUpperCase(), s: [g[1], l], max: g[2] }); });
+  });
+  return d;
+}
+function sxGet(p, d) {
+  if (d.get) return d.get(p);
+  if (d.code) return p.code || '';
+  if (d.s) return String((((p.seo || {})[d.s[0]]) || {})[d.s[1]] || '');
+  var v = d.f === 'xml' ? (p.xml || (p.nofeed === '1' ? 'out' : '')) : p[d.f];
+  v = v == null ? '' : String(v); return d.lab && d.lab[v] ? d.lab[v] : v;
+}
+function sxSet(p, d, v, warns, code) {
+  if (d.s) {
+    if (d.max && v.length > d.max) warns.push(code + ': “' + d.h + '” ' + v.length + ' karakter (önerilen en çok ' + d.max + ').');
+    p.seo = p.seo || {}; p.seo[d.s[0]] = p.seo[d.s[0]] || {}; if (v) p.seo[d.s[0]][d.s[1]] = v; else delete p.seo[d.s[0]][d.s[1]]; return true;
+  }
+  if (d.t === 'gtin' && v) { v = v.replace(/[\s-]/g, ''); if (!gtinOk(v)) { warns.push(code + ': GTIN geçersiz, atlandı (“' + v + '”). Excel’de sütunu Metin biçimine çevirin; barkod 8/12/13/14 hane ve doğru kontrol basamaklı olmalı.'); return false; } }
+  if (d.t === 'enum' || d.t === 'xml') { if (v) { var k = hn(v); if (!(k in d.m)) { warns.push(code + ': “' + d.h + '” değeri tanınmadı, atlandı (“' + v + '”).'); return false; } v = d.m[k]; } }
+  if (d.f === 'xml') delete p.nofeed;
+  if (v) p[d.f] = v; else delete p[d.f];
+  return true;
+}
+function sxCard() {
+  return '<div class="c"><h3>Toplu SEO ve Merchant alanları (ürün koduyla eşleşir)</h3><p class="mut">Mevcut ürünlerinizi bu şablonla Excel’e aktarın, eksik alanları doldurup geri yükleyin. Satırlar <b>Ürün kodu</b> ile eşleşir; <b>yalnızca doldurduğunuz hücreler</b> güncellenir. Kapsam: SEO başlığı ve açıklaması, Merchant başlığı, görsel alt metni (her dil ayrı sütun), marka, GTIN (kontrol basamağı doğrulanır), MPN, durum, stok, Google kategorisi, renk/malzeme/ölçü, varyant grubu, özel etiketler ve <b>Merchant XML’e dahil / dahil değil</b>.</p>' +
+    '<p><button data-run="sxtpl">Şablonu indir (mevcut ürünlerle dolu)</button></p><input type="file" id="sxf" accept=".xlsx,.xls,.csv"><br><label class="chk"><input type="checkbox" id="sxc">Boş hücreler mevcut değeri silsin</label>' +
+    '<p><button class="pri" data-run="sximp">Yükle ve uygula</button></p><div class="log" id="lg2" hidden></div></div>';
+}
+function sxTemplate() {
+  var defs = sxDefs(), rows = [defs.map(function (d) { return d.h; })];
+  D.products.forEach(function (p) { rows.push(defs.map(function (d) { return sxGet(p, d); })); });
+  var ws = XLSX.utils.aoa_to_sheet(rows); ws['!cols'] = defs.map(function (d) { return { wch: d.s ? 34 : d.code ? 16 : d.ro ? 30 : 18 }; });
+  var info = [['Alan', 'Kabul edilen değerler'], ['Ürün kodu', 'Ürünün mevcut kodu; satırlar bununla eşleşir (zorunlu).'], ['Durum', 'yeni, yenilenmiş, ikinci el'], ['Stok durumu', 'stokta, stokta yok, ön sipariş, tedarik bekleniyor'],
+    ['Merchant XML', 'dahil, dahil değil, varsayılan (boş = değiştirme)'], ['GTIN (barkod)', '8, 12, 13 veya 14 haneli, doğru kontrol basamaklı. Sütunu Metin biçiminde tutun.'],
+    ['SEO başlığı', 'Önerilen en çok 70 karakter'], ['SEO açıklaması', 'Önerilen 120–170 karakter'], ['Merchant başlığı', 'En çok 150 karakter; boşsa ürün adı kullanılır'], ['Görsel alt metni', 'Ana görselin alt metni; boşsa ürün adı'], ['Boş hücre', 'Varsayılan olarak mevcut değer korunur (yükleme sırasında “Boş hücreler değeri silsin” işaretlenirse silinir).']];
+  var ws2 = XLSX.utils.aoa_to_sheet(info); ws2['!cols'] = [{ wch: 20 }, { wch: 90 }];
+  var wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'SEO ve Merchant'); XLSX.utils.book_append_sheet(wb, ws2, 'Açıklama');
+  XLSX.writeFile(wb, 'seo-merchant-sablonu.xlsx');
+}
+async function sxImport() {
+  var L2 = function (m) { log(m, '#lg2'); }, fi = $('#sxf') && $('#sxf').files[0];
+  if ($('#lg2')) $('#lg2').textContent = '';
+  if (!fi) { alert('Önce Excel dosyası seçin.'); return; }
+  var buf = await new Promise(function (ok, no) { var r = new FileReader(); r.onload = function () { ok(r.result); }; r.onerror = no; r.readAsArrayBuffer(fi); });
+  var rows;
+  try { var wb = XLSX.read(buf, { type: 'array' }); rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false }); } catch (x) { L2('Dosya okunamadı.'); return; }
+  if (!rows.length) { L2('Dosya boş.'); return; }
+  var defs = sxDefs(), hdr = rows[0].map(hn), idx = [];
+  defs.forEach(function (d) { var names = [hn(d.h)].concat((d.a || []).map(hn)), i = -1; names.forEach(function (n) { if (i < 0) i = hdr.indexOf(n); }); idx.push(i); });
+  var ci0 = idx[0]; if (ci0 < 0) { L2('“Ürün kodu” sütunu bulunamadı. Şablonu indirip onun başlıklarını kullanın.'); return; }
+  var known = defs.filter(function (d, i) { return idx[i] >= 0 && !d.ro && !d.code; });
+  if (!known.length) { L2('Tanınan hiçbir alan sütunu yok.'); return; }
+  var clear = $('#sxc') && $('#sxc').checked, byCode = {}, warns = [], miss = [], upd = 0, cells = 0;
+  D.products.forEach(function (p) { if (p.code) byCode[String(p.code).trim()] = p; });
+  rows.slice(1).forEach(function (r) {
+    var code = String(r[ci0] == null ? '' : r[ci0]).trim(); if (!code) return;
+    var p = byCode[code]; if (!p) { miss.push(code); return; }
+    var touched = false;
+    defs.forEach(function (d, i) {
+      if (idx[i] < 0 || d.ro || d.code) return;
+      var v = String(r[idx[i]] == null ? '' : r[idx[i]]).trim();
+      if (v === '' && !clear) return;
+      if (sxSet(p, d, v, warns, code)) { touched = true; cells++; }
+    });
+    if (touched) upd++;
+  });
+  persist();
+  L2(upd + ' ürün güncellendi (' + cells + ' hücre). Tanınan sütunlar: ' + known.map(function (d) { return d.h; }).join(', ') + '.');
+  if (miss.length) L2(miss.length + ' satır eşleşmedi (kod bulunamadı): ' + miss.slice(0, 15).join(', ') + (miss.length > 15 ? ' …' : ''));
+  warns.slice(0, 40).forEach(function (w) { L2('• ' + w); }); if (warns.length > 40) L2('… ve ' + (warns.length - 40) + ' uyarı daha.');
+  L2('Ürünler sekmesindeki filtrelerle eksik kalanları görebilirsiniz.');
+}
 function excelView() {
   var F = [['code', 'Ürün kodu', 'A'], ['cat', 'Kategori', 'B'], ['name', 'Ürün adı', 'C'], ['price', 'Fiyat', 'D'], ['sale', 'İndirimli fiyat', 'E'], ['desc', 'Açıklama', 'F'], ['imgs', 'Resim sütunları', 'I-P']];
   return '<div class="c"><h3>Excel’den toplu ürün ekle</h3><p class="mut">Dosyadaki metinler Türkçe kabul edilir. Aynı ürün koduna sahip ürünler güncellenir, yenileri eklenir. Hazır şablonu indirip doldurabilirsiniz.</p>' +
@@ -219,17 +397,20 @@ function excelView() {
     '<div class="g">' + F.map(function (f) { return '<div><label>' + f[1] + ' (sütun harfi)</label><input type="text" data-f="' + f[0] + '" value="' + f[2] + '"></div>'; }).join('') + '</div>' +
     '<label class="chk"><input type="checkbox" id="hd" checked>İlk satır başlık</label><br><label class="chk"><input type="checkbox" id="mir" checked><b>Görselleri kendi depoma kopyala</b> (karşı firma linkleri sitede kalmaz)</label><br><label class="chk"><input type="checkbox" id="atr" checked><b>Dilleri otomatik güncelle</b> (içe aktarırken seçili dillere çevir)</label><br>' +
     Object.keys(LG).filter(function (k) { return k !== 'tr'; }).map(function (k) { return '<label class="chk"><input type="checkbox" class="tl" value="' + k + '"' + (langs().indexOf(k) >= 0 ? ' checked' : '') + '>' + LG[k].n + '</label>'; }).join('') +
-    '<p><button class="pri" data-run="imp">İçe aktar</button></p><div class="log" id="lg" hidden></div></div>';
+    '<p><button class="pri" data-run="imp">İçe aktar</button></p><div class="log" id="lg" hidden></div></div>' + sxCard();
 }
 function settings() {
   var S = D.settings, h = '<div class="tabs">' + SUB.map(function (t) { return '<button class="' + (t[0] === sub ? 'on' : '') + '" data-sub="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
   if (sub === 'brand') h += '<div class="c"><h3>Logo</h3><p class="mut">Logo hem sitede hem tarayıcı sekmesinde (favicon) kullanılır. PNG, JPG veya SVG yükleyin.</p><div class="r"><img class="pv logo" src="' + esc(S.logo || '') + '" alt=""><input type="file" data-up="settings.logo" data-max="512" data-png="1" accept="image/*"><button class="dg sm" data-clr="settings.logo">Kaldır</button></div></div>' +
     '<div class="c"><h3>Marka</h3><div class="g">' + inp('settings.name', 'Mağaza adı') + inp('settings.siteUrl', 'Alan adı (https://…)', { ph: 'https://www.alanadiniz.com' }) + inp('settings.accent', 'Vurgu rengi', { t: 'color' }) + inp('settings.logoSize', 'Sitedeki logo yüksekliği (px, 24–160)', { t: 'number', n: 1, ph: '64' }) + inp('settings.logoSizeM', 'Mobilde logo yüksekliği (px, 24–120)', { t: 'number', n: 1, ph: '54' }) + '<div><label>Logonun yanında mağaza adı</label><select data-p="settings.logoOnly"><option value=""' + (val('settings.logoOnly') !== '1' ? ' selected' : '') + '>Göster</option><option value="1"' + (val('settings.logoOnly') === '1' ? ' selected' : '') + '>Gizle (yalnızca logo)</option></select></div>' + inp('settings.currency', 'Para birimi (TRY, USD…)') + '</div></div>';
   else if (sub === 'contact') h += '<div class="c"><h3>İletişim</h3><div class="g">' + inp('settings.whatsapp', 'WhatsApp (905xxxxxxxxx)') + inp('settings.email', 'E-posta') + inp('settings.instagram', 'Instagram adresi') + '</div></div>' +
+    '<div class="c"><h3>WhatsApp sipariş mesajı</h3><p class="mut">Ürün sayfasında müşteri adedi seçip butona basınca WhatsApp’ta bu mesaj açılır. Kullanabileceğiniz alanlar: <b>{urun}</b> ürün adı, <b>{kod}</b> ürün kodu, <b>{adet}</b> seçilen adet, <b>{link}</b> ürünün bağlantısı. Boş bırakırsanız hazır mesaj kullanılır. Numarayı 905xxxxxxxxx ya da 05xx… biçiminde yazabilirsiniz.</p>' + langs().map(function (l) { return inp('settings.waTpl.' + l, LG[l].n + ' — mesaj', { ph: 'Merhaba, {urun} ({kod}) ürününden {adet} adet sipariş vermek istiyorum. {link}' }); }).join('') + '</div>' +
     '<div class="c"><h3>Üst duyuru çubuğu</h3><div class="g">' + langs().map(function (l) { return inp('settings.announce.' + l, LG[l].n); }).join('') + '</div></div>';
   else if (sub === 'legal') h += '<div class="c"><h3>Yasal bilgiler (KVKK, mesafeli satış, iade sayfaları için)</h3><p class="mut">Bu bilgiler sitedeki KVKK Aydınlatma Metni, Gizlilik, Çerez, Mesafeli Satış Sözleşmesi, İade ve Değişim ve Kullanım Koşulları sayfalarına ve altbilgiye otomatik yazılır. Gerçek ticari bilgilerinizi girin; boş bırakılan zorunlu alanlar sayfada sarı “[… giriniz]” olarak görünür. E-posta ve telefon “İletişim” sekmesinden alınır.</p><div class="g">' + inp('settings.legal.company', 'Ticari unvan (şahıs ise ad-soyad)') + inp('settings.legal.taxOffice', 'Vergi dairesi') + inp('settings.legal.taxNo', 'Vergi no / T.C. kimlik no') + inp('settings.legal.mersis', 'MERSİS no (varsa)') + inp('settings.legal.phone', 'Telefon (boşsa WhatsApp numarası)') + inp('settings.legal.kep', 'KEP adresi (varsa)') + '</div>' + inp('settings.legal.address', 'Açık adres', { area: 1 }) + '</div>';
   else if (sub === 'home') h += '<div class="c"><h3>Ana sayfa (Hero)</h3><p class="mut">Başlıkta *yıldız* arasına aldığınız kelime altın renkli italik görünür.</p>' + inp('settings.featuredCat', 'Ana sayfada öne çıkan kategori (tam adı)') +
     langs().map(function (l) { return '<h4>' + LG[l].n + '</h4><div class="g">' + inp('settings.heroTitle.' + l, 'Başlık') + inp('settings.heroSub.' + l, 'Alt metin') + inp('settings.eyebrow.' + l, 'Başlık üstü küçük yazı') + '</div>'; }).join('') + '</div>';
+  else if (sub === 'studio') h += Studio.html();
+  else if (sub === 'depo') h += Studio.depoHtml();
   else if (sub === 'banner') {
     var BN = (S.banners = S.banners || {}), RO = [['', 'Varsayılan'], ['portrait', 'Dikey 3:4'], ['square', 'Kare 1:1'], ['landscape', 'Yatay 4:3'], ['tall', 'Uzun 2:3']];
     var slots = [['hero1', 'Hero — büyük görsel'], ['hero2', 'Hero — küçük görsel'], ['ed1', 'Öne çıkan koleksiyon — görsel 1'], ['ed2', 'Öne çıkan koleksiyon — görsel 2'], ['story', 'Hikâyemiz görseli']];
@@ -255,16 +436,16 @@ function settings() {
     '<div class="c"><h3>Çeviri yöntemi</h3><p class="mut">Anahtar girerseniz Claude ile yüksek kaliteli çeviri yapılır (önerilir). Anahtar girmezseniz ücretsiz MyMemory servisi kullanılır (günlük sınırı vardır, kalitesi daha düşüktür). Anahtar yalnızca bu tarayıcıda saklanır.</p><label>Anthropic API anahtarı (isteğe bağlı)</label><input type="password" id="ak" value="' + esc(localStorage.getItem('aurelya-key') || '') + '" placeholder="sk-ant-…"></div>';
   else if (sub === 'merchant') {
     var root = (S.siteUrl || 'https://alanadiniz.com').replace(/\/+$/, '');
-    h += '<div class="c"><h3>Google Merchant Center ürün akışı (XML)</h3><p class="mut">Site her değişiklikte bu akışı otomatik günceller. Merchant Center → Ürünler → Akışlar → Yeni akış → “Zamanlanmış getirme” ile aşağıdaki adresi bir kez ekleyin; Google akışı kendisi düzenli çeker.</p>' +
-      langs().map(function (l) { var u = root + (l === 'tr' ? '' : '/' + l) + '/google-merchant.xml'; return '<div class="r"><span><b>' + LG[l].n + '</b> — <a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a></span><button class="sm" data-run="feed:' + l + '">XML indir</button></div>'; }).join('') +
+    h += '<div class="c"><h3>Google Merchant Center ürün akışı (XML)</h3><p class="mut">Bu adres bir dosya değil <b>canlı bağlantıdır</b>: ürün eklediğinizde, fiyat/stok değiştirdiğinizde ya da sildiğinizde akış kendiliğinden güncellenir, XML dosyası yüklemenize gerek yoktur. Stok adedi girdiğiniz ürünlerde adet ve stok durumu (0 ise “stokta yok”) otomatik gönderilir. Merchant Center → Ürünler → Akışlar → Yeni akış → “Zamanlanmış getirme” ile aşağıdaki adresi bir kez ekleyin; Google akışı kendisi düzenli çeker.</p>' +
+      langs().map(function (l) { var u = root + (l === 'tr' ? '' : '/' + l) + '/google-merchant.xml'; return '<div class="r"><span><b>' + LG[l].n + '</b> — <a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a></span><button class="sm" data-cp="' + esc(u) + '">Bağlantıyı kopyala</button><button class="sm" data-run="feed:' + l + '">XML indir</button></div>'; }).join('') +
       '<p class="mut" style="margin-top:8px">Akışa yalnızca fiyatı ve görseli olan ürünler girer. GTIN/MPN’si olmayan ürünlere otomatik identifier_exists=no yazılır.</p></div>' +
-      '<div class="c"><h3>Varsayılanlar</h3><div class="g">' + inp('settings.merchant.brand', 'Varsayılan marka (boşsa mağaza adı)') + inp('settings.merchant.gcat', 'Varsayılan Google ürün kategorisi', { ph: 'Home & Garden > Decor' }) +
+      feedStatus() + '<div class="c"><h3>Varsayılanlar</h3><div class="g">' + selx('settings.merchant.mode', 'XML kapsamı', [['', 'Tüm ürünler (dışarıda bıraktıklarım hariç)'], ['selected', 'Yalnızca “XML’e dahil et” işaretlediklerim']]) + inp('settings.merchant.brand', 'Varsayılan marka (boşsa mağaza adı)') + inp('settings.merchant.gcat', 'Varsayılan Google ürün kategorisi', { ph: 'Home & Garden > Decor' }) +
       selx('settings.merchant.condition', 'Varsayılan durum', [['', 'Yeni'], ['new', 'Yeni'], ['refurbished', 'Yenilenmiş'], ['used', 'İkinci el']]) + '</div></div>' +
       '<div class="c"><h3>Kargo (isteğe bağlı)</h3><p class="mut">Kargo ücretini Merchant Center’da ayarladıysanız boş bırakın. Ücretsiz kargo için 0 yazın.</p><div class="g">' + inp('settings.merchant.shipCountry', 'Ülke kodu', { ph: 'TR' }) + inp('settings.merchant.shipService', 'Hizmet adı', { ph: 'Standart' }) + inp('settings.merchant.shipPrice', 'Kargo ücreti', { ph: '49.90' }) + '</div></div>';
   }
   else h += '<div class="c"><h3>Genel SEO</h3>' + inp('settings.seo.titleTemplate', 'Başlık şablonu ({title} ve {store} kullanılır)') + inp('settings.seo.keywords', 'Anahtar kelimeler (virgülle)') + '<div class="g">' + inp('settings.seo.gaId', 'Google Analytics ID (G-XXXX)') + inp('settings.seo.gscToken', 'Search Console doğrulama kodu') + '</div>' + inp('settings.seo.sameAs', 'Sosyal medya linkleri (boşlukla ayır)', { area: 1 }) +
     '<label>Paylaşım görseli (1200×630 JPG/PNG önerilir)</label><div class="r"><img class="pv" src="' + esc(S.seo.ogImage || '') + '" alt=""><input type="file" data-up="settings.seo.ogImage" data-max="1200" accept="image/*"></div></div>' +
-    '<div class="c"><h3>Ana sayfa SEO</h3>' + langs().map(function (l) { return inp('settings.seo.homeTitle.' + l, LG[l].n + ' — ana sayfa başlığı (50–60 karakter)', { cnt: 1 }) + inp('settings.seo.siteDesc.' + l, LG[l].n + ' — ana sayfa açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</div>';
+    Studio.seoCardHtml() + '<div class="c"><h3>Ana sayfa SEO</h3>' + langs().map(function (l) { return inp('settings.seo.homeTitle.' + l, LG[l].n + ' — ana sayfa başlığı (50–60 karakter)', { cnt: 1 }) + inp('settings.seo.siteDesc.' + l, LG[l].n + ' — ana sayfa açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</div>';
   return h;
 }
 
@@ -340,6 +521,8 @@ document.addEventListener('input', function (e) {
 document.addEventListener('change', function (e) {
   var t = e.target;
   if (t.dataset.cpslug != null) { var cps = cpageList()[+t.dataset.cpslug]; if (cps) { cps.slug = AurelyaBuild.slugify(t.value); persist(); render(); } return; }
+  if (t.id === 'pf') { pf = t.value; fillList(); return; }
+  if (t.id === 'bf') { bulkVal(); return; }
   if (t.id === 'pc') { cf = t.value; fillList(); return; }
   if (t.id === 'csa') { catKeys().forEach(function (c) { t.checked ? csel.add(c) : csel.delete(c); }); document.querySelectorAll('[data-csel]').forEach(function (x) { x.checked = t.checked; }); csUi(); return; }
   if (t.dataset.csel != null) { t.checked ? csel.add(t.dataset.csel) : csel.delete(t.dataset.csel); csUi(); return; }
@@ -374,6 +557,8 @@ document.addEventListener('click', function (e) {
   else if (d.cpedit) { cpi = +d.cpedit; el = 'tr'; render(); window.scrollTo(0, 0); }
   else if (d.cpback) { cpi = -1; render(); }
   else if (d.cpdel) { var cpD = cpageList()[+d.cpdel]; if (cpD && confirm('“' + (((cpD.title || {}).tr) || cpD.slug || 'Adsız') + '” sayfası kalıcı olarak silinsin mi?')) { cpageList().splice(+d.cpdel, 1); cpi = -1; persist(); render(); } }
+  else if (d.bx) bulkX(d.bx);
+  else if (d.pfgo) { view = 'urun'; ei = -1; pf = d.pfgo; render(); }
   else if (d.run) run(d.run);
 });
 $('#lo').onclick = async function () { await saveNow(); await sb.auth.signOut(); location.reload(); };
@@ -443,6 +628,8 @@ function xlsOut(rows, name, sheetName) { var wb = XLSX.utils.book_new(); XLSX.ut
 
 async function run(w) {
   if (w === 'catbulkdel') { var cn = Array.from(csel); if (!cn.length) return; var pc = catProds(cn).length; if (!confirm(cn.length + ' kategori silinecek (içlerinde toplam ' + pc + ' ürün var).\n\nTamam: kategoriler VE ürünleri kalıcı silinir.\nİptal: bir sonraki soruda yalnızca kategorileri silme seçeneği sunulur.')) { if (pc && confirm('Yalnızca kategoriler silinsin, ürünler kategorisiz kalsın mı?')) { await deleteCats(cn, false); render(); } else if (!pc) { await deleteCats(cn, false); render(); } return; } await deleteCats(cn, true); render(); return; }
+  if (w === 'sxtpl') { sxTemplate(); return; }
+  if (w === 'sximp') { await sxImport(); return; }
   if (w === 'cattpl') { xlsOut([['Kategori', 'English', 'Deutsch', 'Français', 'العربية', 'Türkçe açıklama'], ['Sunumluklar', 'Serving Pieces', 'Servierstücke', 'Pièces de service', 'قطع التقديم', 'Şık sunum ürünleri'], ['Sunumluklar > Lokumluklar', 'Turkish Delight Dishes', 'Konfektschalen', 'Coupelles de confiseries', 'أطباق الحلوى', 'Alt kategori örneği']], 'kategori-sablonu.xlsx', 'Kategoriler'); return; }
   if (w === 'catxe') { var xr2 = [['Kategori', 'English', 'Deutsch', 'Français', 'العربية', 'Türkçe açıklama']]; catKeys().forEach(function (c) { var n = D.catNames[ck(c)] || {}; xr2.push([c, n.en || '', n.de || '', n.fr || '', n.ar || '', (D.catDesc[ck(c)] || {}).tr || '']); }); xlsOut(xr2, 'kategoriler.xlsx', 'Kategoriler'); return; }
   if (w === 'bulkdel') { var l = Array.from(sel); if (!l.length) return; if (!confirm(l.length + ' ürün kalıcı olarak silinecek (veritabanından ve yüklenmiş görselleriyle). Bu işlem geri alınamaz. Devam edilsin mi?')) return; await removeProducts(l); render(); return; }
