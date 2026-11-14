@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.aurelyahome.com/sitemap.xml
+Sitemap: https://www.modaedo.com/sitemap.xml
