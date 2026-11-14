@@ -41,3 +41,9 @@ create policy "aurelya gorsel yonetim" on storage.objects for all to authenticat
 --    (Auto Confirm User işaretli), sonra e-postayı aşağıya yazıp bu satırı çalıştırın:
 insert into public.aurelya_admins (user_id) select id from auth.users where email = 'yasamore@dekor.com'
 on conflict (user_id) do nothing;
+
+-- 6) CANLI SİTE İÇİN OKUMA İZNİ (panel değişiklikleri sitede anında görünsün)
+--    Site, ürün verisini herkese açık anahtarla okur. Veri zaten sitede yayınlanan içeriktir;
+--    YAZMA yine yalnızca yöneticilerdedir.
+drop policy if exists "herkes site okur" on public.aurelya_site;
+create policy "herkes site okur" on public.aurelya_site for select to anon using (id = 'main');
