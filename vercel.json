@@ -3,6 +3,6 @@
   "buildCommand": null,
   "installCommand": null,
   "outputDirectory": "dist",
-  "functions": { "api/mirror.js": { "maxDuration": 30 }, "api/serve.js": { "includeFiles": "dist/yonetim/**", "maxDuration": 30 } },
+  "functions": { "api/mirror.js": { "maxDuration": 30 }, "api/serve.js": { "includeFiles": "dist/{yonetim/**,google*.html}", "maxDuration": 30 } },
   "routes": [ { "src": "/yonetim", "status": 308, "headers": { "Location": "/yonetim/" } }, { "src": "/((?!yonetim(?:/|$)|api(?:/|$))[^?]*)", "dest": "/api/serve?path=$1" } ]
 }

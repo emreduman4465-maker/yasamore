@@ -54,6 +54,10 @@ module.exports = async (req, res) => {
     res.status(404).send('Google Merchant XML akisi pasif. Yonetim paneli > Site Ayarlari > Google Merchant > "XML akisi" alanini Aktif yapin.' + (c.src !== 'supabase' ? '\n(Uyari: site canli veriyi okuyamiyor, yedek veri kullaniliyor. supabase-kurulum.sql icindeki 6. adimi calistirin.)' : ''));
     return;
   }
+  /* Kök dizindeki doğrulama dosyaları (örn. google1234abcd.html) dist/ klasöründen aynen sunulur. */
+  if (!key && /^google[0-9a-f]+\.html$/i.test(p)) {
+    try { const f = fs.readFileSync(path.join(__dirname, '../dist', p)); res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300'); res.status(200).send(f); return; } catch (e) { /* yoksa 404 */ }
+  }
   if (!key) { key = files['404.html'] != null ? '404.html' : null; status = 404; }
   if (!key) { res.status(404).send('Not found'); return; }
   const v = files[key], ext = key.split('.').pop().toLowerCase();
