@@ -22,3 +22,15 @@ Site Ayarları → Diller ve Çeviri'ye Anthropic API anahtarı girerseniz Claud
 
 ## Alt kategoriler
 Ürünün “Kategori” alanına `Ana > Alt` yazın (örn. `Sunumluklar > Lokumluklar`) ya da Kategoriler sekmesinde ana kategori kartındaki **+ Alt kategori** düğmesini kullanın. Sitede menüde açılır liste, kategori sayfasında alt kategori düğmeleri, `/kategori/ana/alt/` sayfaları, ana sayfada alt kategori çipleri ve altbilgide alt bağlantılar otomatik oluşur. Diğer dillerde görünmesi için alt kategoriye de çeviri girilmelidir (Kategoriler → “Eksik kategori çevirilerini otomatik tamamla”).
+
+## Özel kod ve özel sayfalar
+**Site Ayarları → Özel Kod:** Tüm sayfalara uygulanan CSS (style.css'in sonuna eklenir), Head HTML (`</head>` öncesi),
+Sayfa sonu HTML (`</body>` öncesi) ve JavaScript (`/custom.js` olarak yüklenir). Pixel, Tag Manager, doğrulama kodu,
+canlı destek vb. için kullanın.
+
+**Site Ayarları → Özel Sayfalar:** Kendi HTML/CSS/JS'inizle sınırsız sayfa. Her sayfada adres (URL), dil başına başlık/açıklama/HTML,
+sayfaya özel CSS/Head/JS, üst menü ve altbilgi bağlantısı, taslak ve noindex seçenekleri vardır.
+Düzenler: *Metin sayfası*, *Serbest HTML* (menü+altbilgi var), *Tam genişlik*, *Boş sayfa* (menü/altbilgi yok; tam HTML belgesi yazabilirsiniz).
+İçerik girilen her dilde `/slug/`, `/en/slug/` … adreslerinde yayınlanır ve sitemap'e eklenir.
+Sistem adresleri (urun, kategori, yonetim, dil kodları, yasal sayfalar…) kullanılamaz. Veri Supabase'deki aynı satırda saklanır; ek SQL gerekmez.
+
