@@ -34,3 +34,26 @@ Düzenler: *Metin sayfası*, *Serbest HTML* (menü+altbilgi var), *Tam genişlik
 İçerik girilen her dilde `/slug/`, `/en/slug/` … adreslerinde yayınlanır ve sitemap'e eklenir.
 Sistem adresleri (urun, kategori, yonetim, dil kodları, yasal sayfalar…) kullanılamaz. Veri Supabase'deki aynı satırda saklanır; ek SQL gerekmez.
 
+## Toplu SEO / Merchant alanları ve XML
+**Excel ile ürün ekle → Toplu SEO ve Merchant alanları:** Şablonu mevcut ürünlerle dolu indirin, doldurup yükleyin. Satırlar *Ürün kodu* ile eşleşir,
+yalnızca dolu hücreler güncellenir (isterseniz “Boş hücreler değeri silsin”). Sütunlar: marka, GTIN (kontrol basamağı doğrulanır), MPN, durum, stok,
+Google kategorisi, renk/malzeme/ölçü, varyant grubu, özel etiket 0–4, Merchant XML (dahil/dahil değil) ve her dil için SEO başlığı, SEO açıklaması,
+Merchant başlığı, görsel alt metni.
+
+**Ürünler:** Filtre (XML’de olanlar, kapsam dışı, fiyat/görsel eksik, Merchant alanı eksik, SEO girilmemiş) ve satırlarda durum rozetleri.
+Ürünleri seçince **XML’e dahil et / XML’den çıkar / varsayılan** ve toplu alan atama (marka, Google kategorisi, kategori taşıma, durum, stok, etiketler…) çıkar.
+
+**Site Ayarları → Google Merchant:** “XML kapsamı” = tüm ürünler (hariç tuttuklarım dışında) ya da yalnızca “XML’e dahil et” işaretlediklerim.
+Üstteki XML durumu kartı dil bazında ürün sayısını ve eksikleri gösterir.
+
+
+## Yeni (Pro) özellikler
+**Canlı Merchant XML:** `https://alanadiniz.com/google-merchant.xml` (diğer diller `/en/google-merchant.xml` …) dosya değil canlı bağlantıdır; ürün ekleme/silme/fiyat/stok değişince kendiliğinden güncellenir. Ürün düzenleyicide **Stok adedi** girilirse akışa `sell_on_google_quantity` ve stok durumu yazılır (0 = stokta yok). Excel şablonunda **Stok adedi** sütunu vardır.
+
+**WhatsApp siparişi:** Site Ayarları → İletişim'den numara (905xxxxxxxxx veya 05xx…) ve dil başına mesaj şablonu ({urun} {kod} {adet} {link}) girilir. Ürün sayfasında müşteri adedi seçer; WhatsApp mesajına ürün bağlantısı ve adet otomatik yazılır. Stokta olmayan üründe buton kapanır.
+
+**Banner Stüdyosu (Site Ayarları → Banner Stüdyosu):** her banner için görsel/ürün seçimi, sığdırma (kırp / tam sığdır / esnet), yakınlık ve konum, 20 hazır şekil + özel clip-path, rozet, tıklama bağlantısı (ürün, kategori, URL, WhatsApp). Masaüstü ve telefon önizlemesinde banner **sürüklenerek taşınır, köşe tutamağıyla boyutlandırılır**; ayarlar cihaza göre ayrı kaydedilir ve otomatik yayına girer.
+
+**Depo ve Veritabanı:** ürün silinince görselleri depodan otomatik silinir; ayrıca kullanılmayan görselleri tarayıp temizleyen araç ve veritabanı boyutu göstergesi vardır.
+
+**Toplu otomatik SEO (Site Ayarları → SEO):** tüm ürünler ve diller için SEO başlığı/açıklaması, Merchant başlığı ve görsel alt metni tek tıkla üretilir.
