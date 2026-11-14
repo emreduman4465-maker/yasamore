@@ -188,9 +188,14 @@
     lastScroll = 0; show(k);
   }
   function sizeBox() {
-    var b = $q('#dsbox'); if (!b) return;
-    b.style.width = dev === 'm' ? '390px' : dev === 't' ? '820px' : '100%';
-    var f = $q('#dsf'); if (f) f.style.height = Math.max(420, window.innerHeight - 250) + 'px';
+    var b = $q('#dsbox'), f = $q('#dsf'); if (!b || !f) return;
+    /* Önizleme gerçek cihaz genişliğinde (bilgisayar 1280px) çizilir ve panele sığacak şekilde küçültülür;
+       böylece bilgisayar/mobil ayarları (logo genişliği dahil) doğru görünür. */
+    var H = Math.max(420, window.innerHeight - 250), w = dev === 'm' ? 390 : dev === 't' ? 820 : 1280;
+    var avail = Math.max(240, (b.parentNode.clientWidth || 600) - 20), sc = Math.min(1, avail / w);
+    b.style.width = Math.round(w * sc) + 'px'; b.style.height = H + 'px'; b.style.overflow = 'hidden'; b.style.maxWidth = 'none';
+    f.style.width = w + 'px'; f.style.height = Math.round(H / sc) + 'px'; f.style.maxWidth = 'none';
+    f.style.transformOrigin = '0 0'; f.style.transform = sc < 1 ? 'scale(' + sc.toFixed(4) + ')' : 'none';
   }
   function setMsg(t, cls) { var m = $q('#dsmsg'); if (m) { m.className = 'mut ' + (cls || ''); m.textContent = t; } }
   function status() {
