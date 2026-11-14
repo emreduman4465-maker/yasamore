@@ -19,3 +19,6 @@ Değişiklikler panelde Supabase'e kaydedilir; **Yayınla** siteyi üretip `dist
 ## Çeviri
 Site Ayarları → Diller ve Çeviri'ye Anthropic API anahtarı girerseniz Claude ile çevrilir; girmezseniz
 ücretsiz MyMemory servisi kullanılır (günlük sınırlı, daha düşük kalite).
+
+## Alt kategoriler
+Ürünün “Kategori” alanına `Ana > Alt` yazın (örn. `Sunumluklar > Lokumluklar`) ya da Kategoriler sekmesinde ana kategori kartındaki **+ Alt kategori** düğmesini kullanın. Sitede menüde açılır liste, kategori sayfasında alt kategori düğmeleri, `/kategori/ana/alt/` sayfaları, ana sayfada alt kategori çipleri ve altbilgide alt bağlantılar otomatik oluşur. Diğer dillerde görünmesi için alt kategoriye de çeviri girilmelidir (Kategoriler → “Eksik kategori çevirilerini otomatik tamamla”).

@@ -39,4 +39,5 @@ create policy "aurelya gorsel yonetim" on storage.objects for all to authenticat
 
 -- 5) YÖNETİCİ EKLE: önce Authentication > Users > "Add user" ile e-posta/şifre ile kullanıcı oluşturun
 --    (Auto Confirm User işaretli), sonra e-postayı aşağıya yazıp bu satırı çalıştırın:
--- insert into public.aurelya_admins (user_id) select id from auth.users where email = 'SIZIN_EPOSTANIZ@ornek.com';
+insert into public.aurelya_admins (user_id) select id from auth.users where email = 'yasamore@dekor.com'
+on conflict (user_id) do nothing;
