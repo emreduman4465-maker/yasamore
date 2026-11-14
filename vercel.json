@@ -1,0 +1,8 @@
+{
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": "dist",
+  "functions": { "api/serve.js": { "includeFiles": "dist/yonetim/**", "maxDuration": 30 } },
+  "routes": [ { "src": "/((?!yonetim|api)[^?]*)", "dest": "/api/serve?path=$1" } ]
+}
