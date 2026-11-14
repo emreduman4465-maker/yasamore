@@ -16,7 +16,7 @@ var tm;
 function persist() { clearTimeout(tm); $('#sv').textContent = 'Kaydediliyor…'; tm = setTimeout(function () { saveNow().then(schedAuto); }, 700); }
 /* Yayın: site doğrudan Supabase'deki veriden üretilir; kaydetmek = yayınlamak (GitHub/token yok). */
 var autoTm, pubBusy = false, pubAgain = false;
-function schedAuto() { if (!remoteOk) return; $('#sv').textContent = 'Kaydedildi ✓ — site ~30 sn içinde güncellenir'; }
+function schedAuto() { if (!remoteOk) return; $('#sv').textContent = 'Kaydedildi ✓ — site birkaç saniye içinde güncellenir'; }
 async function ghPublish(manual) {
   await saveNow(); var br = AurelyaBuild.build(D, { local: false });
   var m = 'Kaydedildi ✓ — ' + br.report.pages + ' sayfa. Site ~30 sn içinde güncellenir (Ctrl+F5).';
@@ -57,6 +57,37 @@ function renameCat(old, nn) {
 function img(file, max, png, cb) {
   if (file.type === 'image/svg+xml') { var r = new FileReader(); r.onload = function () { cb(r.result); }; r.readAsDataURL(file); return; }
   var im = new Image(); im.onload = function () { var s = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); cb(c.toDataURL(png ? 'image/png' : 'image/jpeg', .86)); }; im.src = URL.createObjectURL(file);
+}
+/* Dış (tedarikçi) görsel adreslerini kendi deponuza kopyalar. Önce sunucu (/api/mirror), olmazsa tarayıcı denenir. */
+var OWN = '/storage/v1/object/public/aurelya-assets/';
+async function mirrorOne(u) {
+  if (!/^https?:\/\//i.test(u) || u.indexOf(OWN) >= 0) return u;
+  try {
+    var s = await sb.auth.getSession(), tk = s.data.session && s.data.session.access_token;
+    var r = await fetch('/api/mirror', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tk }, body: JSON.stringify({ url: u }) });
+    if (r.ok) { var j = await r.json(); if (j.url) return j.url; }
+  } catch (e) {}
+  try {
+    var b = await (await fetch(u)).blob(); if (!/^image\//.test(b.type)) return null;
+    var ex = b.type === 'image/png' ? 'png' : b.type === 'image/svg+xml' ? 'svg' : b.type === 'image/webp' ? 'webp' : 'jpg', nm = 'urunler/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ex;
+    var up = await sb.storage.from('aurelya-assets').upload(nm, b, { contentType: b.type, cacheControl: '31536000' });
+    return up.error ? null : sb.storage.from('aurelya-assets').getPublicUrl(nm).data.publicUrl;
+  } catch (e) { return null; }
+}
+async function mirrorProducts(list) {
+  var jobs = [], ok = 0, fail = 0, done = 0;
+  list.forEach(function (p) { (p.images || []).forEach(function (u, i) { if (/^https?:\/\//i.test(u) && u.indexOf(OWN) < 0) jobs.push({ p: p, i: i, u: u }); }); });
+  if (!jobs.length) return;
+  log('Görseller kendi depoya kopyalanıyor (' + jobs.length + ')…');
+  var next = 0;
+  await Promise.all([0, 1, 2, 3].map(async function () {
+    while (next < jobs.length) {
+      var j = jobs[next++], n = await mirrorOne(j.u);
+      if (n) { j.p.images[j.i] = n; ok++; } else { fail++; log('Kopyalanamadı (eski adres duruyor): ' + j.u); }
+      if (++done % 10 === 0) { $('#sv').textContent = 'Görseller: ' + done + '/' + jobs.length; }
+    }
+  }));
+  log(ok + ' görsel kendi depoya kopyalandı' + (fail ? ', ' + fail + ' görsel kopyalanamadı' : '') + '.');
 }
 function upImg(file, cb) {
   img(file, 1400, false, function (u) {
@@ -176,7 +207,7 @@ function excelView() {
   return '<div class="c"><h3>Excel’den toplu ürün ekle</h3><p class="mut">Dosyadaki metinler Türkçe kabul edilir. Aynı ürün koduna sahip ürünler güncellenir, yenileri eklenir. Hazır şablonu indirip doldurabilirsiniz.</p>' +
     '<p><button data-run="tpl">Boş Excel şablonunu indir</button> <button data-run="xe">Mevcut ürünleri Excel’e aktar</button></p><input type="file" id="xf" accept=".xlsx,.xls,.csv"><div id="xi" class="mut" style="margin:6px 0"></div>' +
     '<div class="g">' + F.map(function (f) { return '<div><label>' + f[1] + ' (sütun harfi)</label><input type="text" data-f="' + f[0] + '" value="' + f[2] + '"></div>'; }).join('') + '</div>' +
-    '<label class="chk"><input type="checkbox" id="hd" checked>İlk satır başlık</label><br><label class="chk"><input type="checkbox" id="atr" checked><b>Dilleri otomatik güncelle</b> (içe aktarırken seçili dillere çevir)</label><br>' +
+    '<label class="chk"><input type="checkbox" id="hd" checked>İlk satır başlık</label><br><label class="chk"><input type="checkbox" id="mir" checked><b>Görselleri kendi depoma kopyala</b> (karşı firma linkleri sitede kalmaz)</label><br><label class="chk"><input type="checkbox" id="atr" checked><b>Dilleri otomatik güncelle</b> (içe aktarırken seçili dillere çevir)</label><br>' +
     Object.keys(LG).filter(function (k) { return k !== 'tr'; }).map(function (k) { return '<label class="chk"><input type="checkbox" class="tl" value="' + k + '"' + (langs().indexOf(k) >= 0 ? ' checked' : '') + '>' + LG[k].n + '</label>'; }).join('') +
     '<p><button class="pri" data-run="imp">İçe aktar</button></p><div class="log" id="lg" hidden></div></div>';
 }
@@ -338,7 +369,9 @@ async function run(w) {
       if (ex) { if (ex.name.tr !== name) ex.name = { tr: name }; ex.cat = String(g('cat') || '').trim(); ex.price = num(g('price')); ex.sale = num(g('sale')); if ((ex.desc && ex.desc.tr) !== desc) ex.desc = { tr: desc }; if (imgs.length) ex.images = imgs; touched.push(ex); up++; }
       else { var nq = { code: code, cat: String(g('cat') || '').trim(), price: num(g('price')), sale: num(g('sale')), images: imgs, name: { tr: name }, desc: { tr: desc }, seo: {} }; D.products.push(nq); touched.push(nq); add++; }
     });
-    persist(); log(add + ' eklendi, ' + up + ' güncellendi.');
+    log(add + ' eklendi, ' + up + ' güncellendi.');
+    if ($('#mir') && $('#mir').checked && remoteOk) { await mirrorProducts(touched); }
+    persist();
     if ($('#atr').checked) {
       var L3 = Array.from(document.querySelectorAll('.tl:checked')).map(function (x) { return x.value; });
       if (L3.length) { var s2 = new Set(langs()); L3.forEach(function (l) { s2.add(l); }); D.settings.langs = Array.from(s2); persist(); log('Diller güncelleniyor…'); var need = touched.filter(function (p) { return L3.some(function (l) { return !p.name[l]; }); }); if (need.length) await translate(need, L3); await transCats(L3); }
