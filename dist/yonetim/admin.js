@@ -5,15 +5,15 @@ var $ = function (s) { return document.querySelector(s); };
 var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 var D = null, view = 'urun', sub = 'brand', ei = -1, el = 'tr', sheet = null, q = '', cf = '', remoteOk = false, me = '', sel = new Set(), vis = [], csel = new Set();
 D = JSON.parse(JSON.stringify(window.SITE_DATA || { settings: { name: 'Mağazam', langs: ['tr'], seo: {} }, products: [], catNames: {} }));
-function norm() { D.settings = D.settings || {}; D.settings.seo = D.settings.seo || {}; D.products = D.products || []; D.catNames = D.catNames || {}; D.catDesc = D.catDesc || {}; }
+function norm() { D.settings = D.settings || {}; D.settings.seo = D.settings.seo || {}; D.products = D.products || []; D.catNames = D.catNames || {}; D.catDesc = D.catDesc || {}; D.catSeo = D.catSeo || {}; }
 norm();
 var langs = function () { var l = (D.settings.langs || ['tr']).filter(function (x) { return LG[x]; }); if (l.indexOf('tr') < 0) l.unshift('tr'); return l; };
 var NAV = [['urun', 'Ürünler'], ['kat', 'Kategoriler'], ['xl', 'Excel ile ürün ekle'], ['set', 'Site Ayarları'], ['pub', 'Yayınla'], ['acc', 'Hesap']];
-var SUB = [['brand', 'Logo ve Marka'], ['contact', 'İletişim'], ['legal', 'Yasal Bilgiler'], ['home', 'Ana sayfa'], ['about', 'Hakkımızda'], ['langs', 'Diller ve Çeviri'], ['seo', 'SEO']];
+var SUB = [['brand', 'Logo ve Marka'], ['contact', 'İletişim'], ['legal', 'Yasal Bilgiler'], ['home', 'Ana sayfa'], ['about', 'Hakkımızda'], ['langs', 'Diller ve Çeviri'], ['merchant', 'Google Merchant'], ['seo', 'SEO']];
 
 /* ---------- kaydetme ---------- */
 var tm;
-function persist() { clearTimeout(tm); $('#sv').textContent = 'Kaydediliyor…'; tm = setTimeout(function () { saveNow().then(schedAuto); }, 700); }
+function persist() { clearTimeout(tm); $('#sv').textContent = 'Kaydediliyor…'; tm = setTimeout(function () { saveNow().then(schedAuto); }, 300); }
 /* Yayın: site doğrudan Supabase'deki veriden üretilir; kaydetmek = yayınlamak (GitHub/token yok). */
 var autoTm, pubBusy = false, pubAgain = false;
 function schedAuto() { if (!remoteOk) return; $('#sv').textContent = 'Kaydedildi ✓ — site birkaç saniye içinde güncellenir'; }
@@ -38,6 +38,7 @@ function inp(p, l, o) {
   return '<div><label>' + l + (o.cnt ? '<span class="cnt" data-cnt="' + p + '">' + String(val(p)).length + '</span>' : '') + '</label>' +
     (o.area ? '<textarea data-p="' + esc(p) + '">' + v + '</textarea>' : '<input type="' + (o.t || 'text') + '" data-p="' + esc(p) + '"' + (o.n ? ' data-n="1"' : '') + ' value="' + v + '"' + (o.ph ? ' placeholder="' + o.ph + '"' : '') + (o.list ? ' list="' + o.list + '"' : '') + '>') + '</div>';
 }
+function selx(p, label, opts) { var v = String(val(p)); return '<div><label>' + label + '</label><select data-p="' + esc(p) + '">' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (v === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></div>'; }
 function cparts(c) { return String(c || '').split('>').map(function (x) { return x.trim(); }).filter(Boolean); }
 function ck(c) { return String(c).replace(/\./g, ''); }
 function topCats() { var s = {}; D.products.forEach(function (p) { var t = cparts(p.cat)[0]; if (t) s[t] = (s[t] || 0) + 1; }); return s; }
@@ -51,7 +52,7 @@ function renameCat(old, nn) {
   var fix = function (c) { var a = cparts(c); if (!a.length || a[0] !== oa[0]) return c; if (isSub) { if (a[1] !== oa[1]) return c; a[1] = nn; } else a[0] = nn; return a.join(' > '); };
   D.products.forEach(function (p) { if (p.cat) p.cat = fix(p.cat); });
   D.extraCats = (D.extraCats || []).map(fix);
-  ['catNames', 'catDesc'].forEach(function (k) { Object.keys(D[k] || {}).forEach(function (key) { var nk = fix(key); if (nk !== key) { D[k][nk] = D[k][key]; delete D[k][key]; } }); });
+  ['catNames', 'catDesc', 'catSeo'].forEach(function (k) { Object.keys(D[k] || {}).forEach(function (key) { var nk = fix(key); if (nk !== key) { D[k][nk] = D[k][key]; delete D[k][key]; } }); });
   if (!isSub && D.settings.featuredCat === old) D.settings.featuredCat = nn;
 }
 function img(file, max, png, cb) {
@@ -164,6 +165,15 @@ function editor() {
     '<div class="tabs" style="margin-top:14px">' + L.map(function (l) { return '<button class="' + (l === el ? 'on' : '') + '" data-el="' + l + '">' + LG[l].n + '</button>'; }).join('') + '</div>' +
     inp(b + '.name.' + el, 'Ürün adı (' + LG[el].n + ')') + inp(b + '.desc.' + el, 'Açıklama — her madde "- " ile başlasın, ";" ile ayrılsın', { area: 1 }) + inp(b + '.seo.title.' + el, 'SEO başlığı (boşsa şablondan üretilir, 50–60 karakter)', { cnt: 1 }) + inp(b + '.seo.desc.' + el, 'SEO açıklaması (boşsa ürün açıklamasından üretilir, 120–158 karakter)', { area: 1, cnt: 1 }) +
     '<div class="serp"><b>' + esc(val(b + '.seo.title.' + el) || (String(D.settings.seo.titleTemplate || '{title} | {store}').replace('{title}', val(b + '.name.' + el)).replace('{store}', D.settings.name || ''))) + '</b><i>' + esc((D.settings.siteUrl || '') + '/urun/' + (p.slug || '…')) + '</i><div class="mut">' + esc(String(val(b + '.seo.desc.' + el) || val(b + '.desc.' + el)).replace(/\*\*|;?\s*-\s/g, ' ').slice(0, 158)) + '</div></div>' +
+    '<h3 style="margin-top:18px">Google Merchant ve ek SEO</h3><p class="mut">Boş bırakılanlar için Site Ayarları → Google Merchant’taki varsayılanlar kullanılır. Bu bilgiler hem Merchant XML’ine hem sayfadaki Google yapılandırılmış verisine (fiyat, stok, marka, GTIN) yazılır.</p><div class="g">' +
+    inp(b + '.brand', 'Marka') + inp(b + '.gtin', 'GTIN / barkod (EAN, UPC)') + inp(b + '.mpn', 'MPN (üretici parça no)') +
+    selx(b + '.condition', 'Durum', [['', 'Varsayılan (yeni)'], ['new', 'Yeni'], ['refurbished', 'Yenilenmiş'], ['used', 'İkinci el']]) +
+    selx(b + '.availability', 'Stok durumu', [['', 'Stokta'], ['in_stock', 'Stokta'], ['out_of_stock', 'Stokta yok'], ['preorder', 'Ön sipariş'], ['backorder', 'Tedarik bekleniyor']]) +
+    inp(b + '.gcat', 'Google ürün kategorisi (örn. Home & Garden > Decor > Vases)') + inp(b + '.color', 'Renk') + inp(b + '.material', 'Malzeme') + inp(b + '.size', 'Beden / ölçü') +
+    inp(b + '.group', 'Varyant grup kodu (item_group_id)') + inp(b + '.label0', 'Özel etiket 0') + inp(b + '.label1', 'Özel etiket 1') +
+    selx(b + '.nofeed', 'Merchant XML’ine', [['', 'Dahil et'], ['1', 'Dahil etme']]) + '</div>' +
+    inp(b + '.seo.mtitle.' + el, 'Merchant başlığı (' + LG[el].n + ') — boşsa ürün adı; en çok 150 karakter', { cnt: 1 }) +
+    inp(b + '.seo.alt.' + el, 'Ana görsel alt metni (' + LG[el].n + ') — boşsa ürün adı') +
     '<p><button class="pri" data-run="one">Bu ürünü diğer dillere çevir</button> <button class="dg" data-del="' + ei + '">Ürünü sil</button></p><div class="log" id="lg" hidden></div></div>';
 }
 function categories() {
@@ -178,7 +188,7 @@ function categories() {
     names.map(function (c) {
       var isSub = c.indexOf(' > ') > -1, lab = isSub ? c.split(' > ')[1] : c;
       return '<div class="c"' + (isSub ? ' style="margin-left:28px;border-left:3px solid #b08d57"' : '') + '><div class="row"><input type="checkbox" data-csel="' + esc(c) + '"' + (csel.has(c) ? ' checked' : '') + ' style="width:auto"><h3 style="margin:0;flex:1">' + (isSub ? '\u21b3 ' : '') + esc(lab) + ' <small class="mut">(' + catCount(c) + ' ürün)</small></h3>' + (isSub ? '' : '<button class="sm" data-newsub="' + esc(c) + '">+ Alt kategori</button>') + '<button class="sm" data-rencat="' + esc(c) + '">Yeniden adlandır</button><button class="sm dg" data-delcat="' + esc(c) + '">Sil</button></div><div class="g">' +
-        L.map(function (l) { return inp('catNames.' + ck(c) + '.' + l, LG[l].n + ' adı'); }).join('') + '</div>' + inp('catDesc.' + ck(c) + '.tr', 'Türkçe kategori açıklaması (SEO)', { area: 1 }) + '</div>';
+        L.map(function (l) { return inp('catNames.' + ck(c) + '.' + l, LG[l].n + ' adı'); }).join('') + '</div>' + inp('catDesc.' + ck(c) + '.tr', 'Türkçe kategori açıklaması (SEO)', { area: 1 }) + '<details style="margin-top:8px"><summary>Kategori sayfası SEO (başlık / açıklama, her dil)</summary>' + langs().map(function (l) { return inp('catSeo.' + ck(c) + '.title.' + l, LG[l].n + ' — SEO başlığı (50–60 karakter)', { cnt: 1 }) + inp('catSeo.' + ck(c) + '.desc.' + l, LG[l].n + ' — SEO açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</details></div>';
     }).join('') : '<div class="c mut">Henüz kategori yok. “+ Yeni kategori” ile ekleyin ya da Excel yükleyin.</div>');
 }
 function csUi() { var b = $('#cbd'), a = $('#csa'); if (!b) return; b.hidden = !csel.size; b.textContent = 'Seçilenleri sil (' + csel.size + ')'; var ks = catKeys(); a.checked = ks.length > 0 && ks.every(function (c) { return csel.has(c); }); }
@@ -214,7 +224,7 @@ function excelView() {
 function settings() {
   var S = D.settings, h = '<div class="tabs">' + SUB.map(function (t) { return '<button class="' + (t[0] === sub ? 'on' : '') + '" data-sub="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>';
   if (sub === 'brand') h += '<div class="c"><h3>Logo</h3><p class="mut">Logo hem sitede hem tarayıcı sekmesinde (favicon) kullanılır. PNG, JPG veya SVG yükleyin.</p><div class="r"><img class="pv logo" src="' + esc(S.logo || '') + '" alt=""><input type="file" data-up="settings.logo" data-max="512" data-png="1" accept="image/*"><button class="dg sm" data-clr="settings.logo">Kaldır</button></div></div>' +
-    '<div class="c"><h3>Marka</h3><div class="g">' + inp('settings.name', 'Mağaza adı') + inp('settings.siteUrl', 'Alan adı (https://…)', { ph: 'https://www.alanadiniz.com' }) + inp('settings.accent', 'Vurgu rengi', { t: 'color' }) + inp('settings.currency', 'Para birimi (TRY, USD…)') + '</div></div>';
+    '<div class="c"><h3>Marka</h3><div class="g">' + inp('settings.name', 'Mağaza adı') + inp('settings.siteUrl', 'Alan adı (https://…)', { ph: 'https://www.alanadiniz.com' }) + inp('settings.accent', 'Vurgu rengi', { t: 'color' }) + inp('settings.logoSize', 'Sitedeki logo yüksekliği (px, 24–160)', { t: 'number', n: 1, ph: '64' }) + inp('settings.logoSizeM', 'Mobilde logo yüksekliği (px, 24–120)', { t: 'number', n: 1, ph: '54' }) + '<div><label>Logonun yanında mağaza adı</label><select data-p="settings.logoOnly"><option value=""' + (val('settings.logoOnly') !== '1' ? ' selected' : '') + '>Göster</option><option value="1"' + (val('settings.logoOnly') === '1' ? ' selected' : '') + '>Gizle (yalnızca logo)</option></select></div>' + inp('settings.currency', 'Para birimi (TRY, USD…)') + '</div></div>';
   else if (sub === 'contact') h += '<div class="c"><h3>İletişim</h3><div class="g">' + inp('settings.whatsapp', 'WhatsApp (905xxxxxxxxx)') + inp('settings.email', 'E-posta') + inp('settings.instagram', 'Instagram adresi') + '</div></div>' +
     '<div class="c"><h3>Üst duyuru çubuğu</h3><div class="g">' + langs().map(function (l) { return inp('settings.announce.' + l, LG[l].n); }).join('') + '</div></div>';
   else if (sub === 'legal') h += '<div class="c"><h3>Yasal bilgiler (KVKK, mesafeli satış, iade sayfaları için)</h3><p class="mut">Bu bilgiler sitedeki KVKK Aydınlatma Metni, Gizlilik, Çerez, Mesafeli Satış Sözleşmesi, İade ve Değişim ve Kullanım Koşulları sayfalarına ve altbilgiye otomatik yazılır. Gerçek ticari bilgilerinizi girin; boş bırakılan zorunlu alanlar sayfada sarı “[… giriniz]” olarak görünür. E-posta ve telefon “İletişim” sekmesinden alınır.</p><div class="g">' + inp('settings.legal.company', 'Ticari unvan (şahıs ise ad-soyad)') + inp('settings.legal.taxOffice', 'Vergi dairesi') + inp('settings.legal.taxNo', 'Vergi no / T.C. kimlik no') + inp('settings.legal.mersis', 'MERSİS no (varsa)') + inp('settings.legal.phone', 'Telefon (boşsa WhatsApp numarası)') + inp('settings.legal.kep', 'KEP adresi (varsa)') + '</div>' + inp('settings.legal.address', 'Açık adres', { area: 1 }) + '</div>';
@@ -224,13 +234,22 @@ function settings() {
   else if (sub === 'langs') h += '<div class="c"><h3>Site dilleri</h3><p class="mut">Seçtiğiniz her dil için ayrı SEO sayfaları üretilir.</p>' + Object.keys(LG).map(function (k) { return '<label class="chk"><input type="checkbox" data-lang="' + k + '"' + (langs().indexOf(k) >= 0 ? ' checked' : '') + (k === 'tr' ? ' disabled' : '') + '>' + LG[k].n + '</label>'; }).join('') +
     '<p><button class="pri" data-run="miss">Eksik çevirileri otomatik tamamla</button></p><div class="log" id="lg" hidden></div></div>' +
     '<div class="c"><h3>Çeviri yöntemi</h3><p class="mut">Anahtar girerseniz Claude ile yüksek kaliteli çeviri yapılır (önerilir). Anahtar girmezseniz ücretsiz MyMemory servisi kullanılır (günlük sınırı vardır, kalitesi daha düşüktür). Anahtar yalnızca bu tarayıcıda saklanır.</p><label>Anthropic API anahtarı (isteğe bağlı)</label><input type="password" id="ak" value="' + esc(localStorage.getItem('aurelya-key') || '') + '" placeholder="sk-ant-…"></div>';
+  else if (sub === 'merchant') {
+    var root = (S.siteUrl || 'https://alanadiniz.com').replace(/\/+$/, '');
+    h += '<div class="c"><h3>Google Merchant Center ürün akışı (XML)</h3><p class="mut">Site her değişiklikte bu akışı otomatik günceller. Merchant Center → Ürünler → Akışlar → Yeni akış → “Zamanlanmış getirme” ile aşağıdaki adresi bir kez ekleyin; Google akışı kendisi düzenli çeker.</p>' +
+      langs().map(function (l) { var u = root + (l === 'tr' ? '' : '/' + l) + '/google-merchant.xml'; return '<div class="r"><span><b>' + LG[l].n + '</b> — <a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a></span><button class="sm" data-run="feed:' + l + '">XML indir</button></div>'; }).join('') +
+      '<p class="mut" style="margin-top:8px">Akışa yalnızca fiyatı ve görseli olan ürünler girer. GTIN/MPN’si olmayan ürünlere otomatik identifier_exists=no yazılır.</p></div>' +
+      '<div class="c"><h3>Varsayılanlar</h3><div class="g">' + inp('settings.merchant.brand', 'Varsayılan marka (boşsa mağaza adı)') + inp('settings.merchant.gcat', 'Varsayılan Google ürün kategorisi', { ph: 'Home & Garden > Decor' }) +
+      selx('settings.merchant.condition', 'Varsayılan durum', [['', 'Yeni'], ['new', 'Yeni'], ['refurbished', 'Yenilenmiş'], ['used', 'İkinci el']]) + '</div></div>' +
+      '<div class="c"><h3>Kargo (isteğe bağlı)</h3><p class="mut">Kargo ücretini Merchant Center’da ayarladıysanız boş bırakın. Ücretsiz kargo için 0 yazın.</p><div class="g">' + inp('settings.merchant.shipCountry', 'Ülke kodu', { ph: 'TR' }) + inp('settings.merchant.shipService', 'Hizmet adı', { ph: 'Standart' }) + inp('settings.merchant.shipPrice', 'Kargo ücreti', { ph: '49.90' }) + '</div></div>';
+  }
   else h += '<div class="c"><h3>Genel SEO</h3>' + inp('settings.seo.titleTemplate', 'Başlık şablonu ({title} ve {store} kullanılır)') + inp('settings.seo.keywords', 'Anahtar kelimeler (virgülle)') + '<div class="g">' + inp('settings.seo.gaId', 'Google Analytics ID (G-XXXX)') + inp('settings.seo.gscToken', 'Search Console doğrulama kodu') + '</div>' + inp('settings.seo.sameAs', 'Sosyal medya linkleri (boşlukla ayır)', { area: 1 }) +
     '<label>Paylaşım görseli (1200×630 JPG/PNG önerilir)</label><div class="r"><img class="pv" src="' + esc(S.seo.ogImage || '') + '" alt=""><input type="file" data-up="settings.seo.ogImage" data-max="1200" accept="image/*"></div></div>' +
     '<div class="c"><h3>Ana sayfa SEO</h3>' + langs().map(function (l) { return inp('settings.seo.homeTitle.' + l, LG[l].n + ' — ana sayfa başlığı (50–60 karakter)', { cnt: 1 }) + inp('settings.seo.siteDesc.' + l, LG[l].n + ' — ana sayfa açıklaması (120–158 karakter)', { area: 1, cnt: 1 }); }).join('') + '</div>';
   return h;
 }
 function publishView() {
-  return '<div class="c"><h3>SEO denetimi</h3><div id="audit"></div></div><div class="c"><h3>Siteyi yayınla</h3><p class="mut">Artık GitHub anahtarı gerekmez. Yaptığınız her değişiklik Supabase’e kaydedilir ve site ~30 saniye içinde otomatik güncellenir.</p><p><button class="pri" data-run="gh">Kaydet ve kontrol et</button></p><div class="log" id="lg" hidden></div></div>' +
+  return '<div class="c"><h3>SEO denetimi</h3><div id="audit"></div></div><div class="c"><h3>Siteyi yayınla</h3><p class="mut">Artık GitHub anahtarı gerekmez. Yaptığınız her değişiklik Supabase’e kaydedilir ve site birkaç saniye içinde otomatik güncellenir.</p><p><button class="pri" data-run="gh">Kaydet ve kontrol et</button></p><div class="log" id="lg" hidden></div></div>' +
     '<div class="c"><h3>Yedek</h3><p><button data-run="data">Veriyi indir (site-data.js)</button> <button data-run="zip">Siteyi ZIP olarak indir</button></p><label>Yedekten yükle (site-data.js)</label><input type="file" id="bk" accept=".js,.json"></div>';
 }
 function account() {
@@ -355,6 +374,7 @@ async function run(w) {
   if (w === 'pw') { var a = $('#p1').value, b = $('#p2').value; if (a.length < 8) { log('Şifre en az 8 karakter olmalı.'); return; } if (a !== b) { log('Şifreler aynı değil.'); return; } var r0 = await sb.auth.updateUser({ password: a }); log(r0.error ? 'Hata: ' + r0.error.message : 'Şifre değiştirildi ✓'); return; }
   if (w === 'gh') { await ghPublish(true); return; }
   if (w === 'tpl') { xlsOut([XH, ['ORNEK-001', 'Dekoratif Obje > Biblo', 'Örnek ürün adı', 1250, 990, '- Ölçü: 20 cm; - Malzeme: Metal', '', '', 'https://…/gorsel1.jpg']], 'urun-sablonu.xlsx'); return; }
+  if (w.indexOf('feed:') === 0) { var fl = w.slice(5), fr = AurelyaBuild.build(D, { local: false }), fk = (fl === 'tr' ? '' : fl + '/') + 'google-merchant.xml'; dl('google-merchant-' + fl + '.xml', new Blob([fr.files[fk] || ''], { type: 'application/xml' })); var fi = (fr.report.feed || {})[fl]; $('#sv').textContent = fi ? 'XML hazır: ' + fi.items + ' ürün' + (fi.skipped ? ', ' + fi.skipped + ' ürün fiyat/görsel eksik olduğu için dışarıda' : '') : 'XML hazır'; return; }
   if (w === 'xe') { var xr = [XH]; D.products.forEach(function (p) { var im = (p.images || []).filter(function (u) { return !/^data:/.test(u); }), r = [p.code || '', p.cat || '', (p.name || {}).tr || '', p.price || 0, p.sale || 0, (p.desc || {}).tr || '', '', '']; for (var i = 0; i < 8; i++) r.push(im[i] || ''); xr.push(r); }); xlsOut(xr, 'urunler.xlsx'); return; }
   if (w === 'data') { dl('site-data.js', new Blob(['window.SITE_DATA=' + JSON.stringify(D) + ';'], { type: 'text/javascript' })); return; }
   if (w === 'zip') { var r1 = AurelyaBuild.build(D, { local: false }), z = new JSZip(); Object.keys(r1.files).forEach(function (k) { var v = r1.files[k]; typeof v === 'string' ? z.file(k, v) : z.file(k, v.b64, { base64: true }); }); dl('site.zip', await z.generateAsync({ type: 'blob' })); return; }
@@ -385,6 +405,7 @@ function audit() {
   /example\.com|aurelyahome/.test(S.siteUrl || '') || !S.siteUrl ? add('bad', 'Alan adı örnek değer: Site Ayarları → Logo ve Marka bölümüne gerçek adresinizi yazın.') : add('ok', 'Alan adı ayarlı.');
   !S.logo ? add('bad', 'Logo yok.') : add('ok', 'Logo var.');
   /^905000000000$/.test(S.whatsapp || '') || !S.whatsapp ? add('bad', 'WhatsApp numarası örnek/boş.') : add('ok', 'WhatsApp numarası ayarlı.');
+  (function () { var np = D.products.filter(function (p) { return !p.gtin && !p.mpn; }).length, nb = D.products.filter(function (p) { return !p.brand; }).length, ng = D.products.filter(function (p) { return !p.gcat; }).length; np && add('warn', np + ' üründe GTIN/MPN yok (Merchant akışında identifier_exists=no yazılır; barkodu varsa girin).'); !(S.merchant && S.merchant.gcat) && ng && add('warn', 'Google ürün kategorisi tanımlı değil: Site Ayarları → Google Merchant.'); nb && !(S.merchant && S.merchant.brand) && add('warn', 'Marka girilmemiş ürünlerde mağaza adı marka olarak kullanılır.'); })();
   !S.seo.ogImage ? add('warn', 'Paylaşım görseli yok.') : /^data:image\/svg/.test(S.seo.ogImage) ? add('warn', 'Paylaşım görseli SVG; sosyal ağlar için JPG/PNG yükleyin.') : add('ok', 'Paylaşım görseli var.');
   D.products.some(function (p) { return /^DEMO-/.test(p.code); }) && add('bad', 'Örnek (DEMO-) ürünler duruyor: silin veya kendi ürünlerinizle değiştirin.');
   var r = AurelyaBuild.build(D).report; r.warnings.slice(0, 30).forEach(function (w) { add('warn', esc(w)); });
